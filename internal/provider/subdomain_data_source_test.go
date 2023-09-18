@@ -9,24 +9,27 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
-func TestAccExampleDataSource(t *testing.T) {
+func TestAccRecordDataSource(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			// Read testing
 			{
-				Config: testAccExampleDataSourceConfig,
+				Config: testAccRecordDataSourceConfig,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.scaffolding_example.test", "id", "example-id"),
+					resource.TestCheckResourceAttr("data.octodns_record.test", "id", "external-topicus.education-"),
 				),
 			},
 		},
 	})
 }
 
-const testAccExampleDataSourceConfig = `
-data "scaffolding_example" "test" {
-  configurable_attribute = "example"
+const testAccRecordDataSourceConfig = `
+data "octodns_record" "test" {
+  id="external-topicus.education-"
+  name=""
+  score="external"
+  zone="example.com"
 }
 `
