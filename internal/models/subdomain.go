@@ -1,8 +1,11 @@
 package models
 
 import (
+	"errors"
 	"fmt"
 	"gopkg.in/yaml.v3"
+	"maps"
+	"slices"
 	"strings"
 )
 
@@ -35,9 +38,8 @@ func (r *Subdomain) FindAllType() {
 
 func (r *Subdomain) UpdateYaml() (err error) {
 
-	for k, v := range r.Types {
+	for _, v := range r.Types {
 
-		fmt.Println("Updating ", k)
 		if err = v.UpdateYaml(); err != nil {
 			return
 		}
@@ -67,7 +69,7 @@ func (r *Subdomain) CreateType(rtype string) (record *Record, err error) {
 	}
 
 	if _, err = r.GetType(rtypeValidated); err != nil {
-		if err.Error() == "type not found" {
+		if errors.Is(err, TypeNotFoundError) {
 			// Can create Record Type
 
 			emptyNode := &yaml.Node{}
@@ -83,19 +85,16 @@ func (r *Subdomain) CreateType(rtype string) (record *Record, err error) {
 				emptyList.Content = []*yaml.Node{r.ContentNode}
 				err = r.ContentNode.Encode(emptyList)
 				if err != nil {
-					fmt.Println("Err encode", err)
+					return record, fmt.Errorf("error while encoding EmptyList: %s", err.Error())
 				}
 				r.ContentNode.Content[0].Content = data.Content
 				//r.ContentNode.Content[1].Content = emptyNode.Content
 
 				for k := range r.Types {
-					fmt.Println("Blaat", k)
 					tmp, err := r.GetType(k)
-					if err != nil {
-						fmt.Println("Err", err)
-						err = nil
+					if err == nil {
+						r.Types[k].RecordChild = tmp.RecordChild
 					}
-					r.Types[k].RecordChild = tmp.RecordChild
 				}
 
 				r.ContentNode.Content = append(r.ContentNode.Content, emptyNode)
@@ -110,7 +109,7 @@ func (r *Subdomain) CreateType(rtype string) (record *Record, err error) {
 		}
 	}
 
-	return nil, fmt.Errorf("Can not create record")
+	return nil, TypeAlreadyExistsError
 
 }
 
@@ -139,7 +138,53 @@ func (r *Subdomain) GetType(rtype string) (record *Record, err error) {
 		}
 	}
 
-	return nil, fmt.Errorf("type not found")
+	return nil, TypeNotFoundError
+
+}
+
+func (r *Subdomain) DeleteType(rtype string) (err error) {
+
+	checkType := func(root *yaml.Node, rtype string) bool {
+		for i := 0; i < len(root.Content); i += 2 {
+			if root.Content[i].Value == "type" {
+				if root.Content[i+1].Value == strings.ToUpper(rtype) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+
+	if _, ok := r.Types[rtype]; ok {
+		r.Types[rtype].IsDeleted = true // Set deleted is true
+		maps.DeleteFunc(r.Types, func(k string, v *Record) bool {
+			if k == rtype {
+				return true
+			} else {
+				return false
+			}
+		})
+
+	}
+
+	switch r.ContentNode.Kind {
+	case yaml.MappingNode:
+		if checkType(r.ContentNode, rtype) {
+
+			r.ContentNode = &yaml.Node{}
+			return nil
+		}
+
+	case yaml.SequenceNode:
+		for y := 0; y < len(r.ContentNode.Content); y += 1 {
+			if checkType(r.ContentNode.Content[y], rtype) {
+				r.ContentNode.Content = slices.Delete(r.ContentNode.Content, y, y+1)
+				return nil
+			}
+		}
+	}
+
+	return fmt.Errorf("type '%s' not found", rtype)
 
 }
 
@@ -162,11 +207,9 @@ func (r *Subdomain) findType(rtype string) *yaml.Node {
 
 	switch r.ContentNode.Kind {
 	case yaml.MappingNode:
-		//fmt.Println("Map")
 		rrecord = findType(r.ContentNode, rtype)
 		return rrecord
 	case yaml.SequenceNode:
-		//fmt.Println("Seq")
 		for y := 0; y < len(r.ContentNode.Content); y += 1 {
 			if rrecord = findType(r.ContentNode.Content[y], rtype); rrecord != nil {
 				return rrecord

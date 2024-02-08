@@ -31,13 +31,13 @@ type SubdomainResource struct {
 }
 
 func (r *SubdomainResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_record"
+	resp.TypeName = req.ProviderTypeName + "_subdomain"
 }
 
 func (r *SubdomainResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		// This description is used by the documentation generator and the language server.
-		MarkdownDescription: "Record resource",
+		MarkdownDescription: "Subdomain resource",
 
 		Attributes: map[string]schema.Attribute{
 			"zone": schema.StringAttribute{
@@ -117,7 +117,7 @@ func (r *SubdomainResource) Create(ctx context.Context, req resource.CreateReque
 		return
 	}
 
-	record, err := zone.FindRecord(data.Name.ValueString())
+	record, err := zone.FindSubdomain(data.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read record, got error: %s", err))
 		return
@@ -181,7 +181,7 @@ func (r *SubdomainResource) Read(ctx context.Context, req resource.ReadRequest, 
 		return
 	}
 
-	record, err := zone.FindRecord(data.Name.ValueString())
+	record, err := zone.FindSubdomain(data.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read record, got error: %s", err))
 		return

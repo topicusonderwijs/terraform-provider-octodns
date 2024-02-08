@@ -16,7 +16,7 @@ import (
 )
 
 // Ensure provider defined types fully satisfy framework interfaces.
-var _ datasource.DataSource = &SubdomainDataSource{}
+var _ datasource.DataSource = &RecordDataSource{}
 
 // RTYPE_A      RType = "a"
 func NewARecordDataSource() datasource.DataSource {
@@ -139,6 +139,37 @@ func (d *RecordDataSource) Schema(ctx context.Context, req datasource.SchemaRequ
 			"ttl": schema.Int64Attribute{
 				Computed: true,
 			},
+			"octodns": schema.SingleNestedAttribute{
+				MarkdownDescription: "octodns config",
+				Computed:            true,
+				Attributes: map[string]schema.Attribute{
+					"cloudflare": schema.SingleNestedAttribute{
+						Attributes: map[string]schema.Attribute{
+							"proxied": schema.BoolAttribute{
+								Computed: true,
+							},
+							"auto_ttl": schema.BoolAttribute{
+								Computed: true,
+							},
+						},
+						Computed: true,
+					},
+					"azuredns": schema.SingleNestedAttribute{
+						Attributes: map[string]schema.Attribute{
+							"hc_interval": schema.Int64Attribute{
+								Computed: true,
+							},
+							"hc_timeout": schema.Int64Attribute{
+								Computed: true,
+							},
+							"hc_numfailures": schema.Int64Attribute{
+								Computed: true,
+							},
+						},
+						Computed: true,
+					},
+				},
+			},
 		},
 	}
 }
@@ -166,10 +197,6 @@ func (d *RecordDataSource) Configure(ctx context.Context, req datasource.Configu
 func (d *RecordDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var data RecordModel
 
-	if data.Name.String() == "" {
-		data.Name = types.StringValue("@")
-	}
-
 	// Read Terraform configuration data into the model
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 
@@ -187,22 +214,68 @@ func (d *RecordDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 		return
 	}
 
-	r, err := zone.FindRecord(data.Name.ValueString())
+	r, err := zone.FindSubdomain(data.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read record, got error: %s", err))
 		return
 	}
 
-	rt, err := r.GetType(d.rtype.String())
+	//resp.Diagnostics.AddWarning("Client Debug", fmt.Sprintf("Could not retrieve record type: %v", r.Types))
 
-	if rt.TTL > 0 {
-		data.TTL = types.Int64Value(int64(rt.TTL))
+	record, err := r.GetType(d.rtype.String())
+	if err != nil {
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Could not retrieve record type: %s", err.Error()))
+		return
+	}
+
+	if record.TTL > 0 {
+		data.TTL = types.Int64Value(int64(record.TTL))
 	} else {
 		data.TTL = types.Int64Null()
 	}
 
-	for _, v := range rt.ValuesAsString() {
+	for _, v := range record.ValuesAsString() {
 		data.Values = append(data.Values, types.StringValue(v))
+	}
+
+	odns := OctodnsConfigModel{}
+
+	if record.Octodns.Cloudflare != nil {
+		odns.Cloudflare = &OctodnsCloudflareModel{}
+
+		if record.Octodns.Cloudflare.Proxied {
+			odns.Cloudflare.Proxied = types.BoolValue(true)
+		}
+		if record.Octodns.Cloudflare.AutoTTL {
+			odns.Cloudflare.AutoTTL = types.BoolValue(true)
+		}
+
+	}
+
+	if record.Octodns.AzureDNS != nil {
+		AzureDNS := &OctodnsAzureDNSModel{}
+		isSet := false
+
+		if record.Octodns.AzureDNS.Healthcheck.Interval > 0 {
+			odns.AzureDNS.HCInterval = types.Int64Value(int64(record.Octodns.AzureDNS.Healthcheck.Interval))
+			isSet = true
+		}
+		if record.Octodns.AzureDNS.Healthcheck.Timeout > 0 {
+			odns.AzureDNS.HCTimeout = types.Int64Value(int64(record.Octodns.AzureDNS.Healthcheck.Timeout))
+			isSet = true
+		}
+		if record.Octodns.AzureDNS.Healthcheck.NumFailures > 0 {
+			odns.AzureDNS.HCNumFailures = types.Int64Value(int64(record.Octodns.AzureDNS.Healthcheck.NumFailures))
+			isSet = true
+		}
+		if isSet {
+			odns.AzureDNS = AzureDNS
+		}
+
+	}
+
+	if odns.HasConfig() {
+		data.Octodns = &odns
 	}
 
 	// For the purposes of this example code, hardcoding a response value to

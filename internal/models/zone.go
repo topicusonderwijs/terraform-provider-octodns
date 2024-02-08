@@ -2,14 +2,30 @@ package models
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"os"
+	"slices"
 	"strings"
 )
 
 type Zone struct {
-	doc yaml.Node
+	name  string `yaml:"-"`
+	scope string `yaml:"-"`
+	doc   yaml.Node
+	sha   string
+	open  int
+}
+
+func (z *Zone) Open() int {
+	z.open++
+	return z.open
+}
+
+func (z *Zone) Close() int {
+	z.open--
+	return z.open
 }
 
 func (z *Zone) ReadYamlFile(filename string) error {
@@ -26,7 +42,6 @@ func (z *Zone) ReadYamlFile(filename string) error {
 func (z *Zone) ReadYaml(content []byte) error {
 
 	if bytes.Contains(content, []byte("? ''\n  :")) {
-		//fmt.Println("Problem key found")
 		content = bytes.Replace(content, []byte("? ''\n  :"), []byte("'':\n   "), 1)
 	}
 	err := yaml.Unmarshal(content, &z.doc)
@@ -36,6 +51,38 @@ func (z *Zone) ReadYaml(content []byte) error {
 
 	return nil
 
+}
+
+func (z *Zone) CreateSubdomain(subdomain string) (sub Subdomain, err error) {
+
+	var existingSub Subdomain
+	existingSub, err = z.FindSubdomain(subdomain)
+	if err == nil {
+		return existingSub, SubdomainAlreadyExistsError
+	} else {
+		if errors.Is(err, SubdomainNotFoundError) {
+			err = nil // We can ignore this error
+		} else {
+			return // return original error
+		}
+	}
+
+	keyNode := yaml.Node{Kind: yaml.ScalarNode}
+	keyNode.Value = subdomain
+	contentNode := yaml.Node{Kind: yaml.SequenceNode}
+
+	z.doc.Content[0].Content = append(z.doc.Content[0].Content, &keyNode, &contentNode)
+
+	_ = keyNode
+
+	sub = Subdomain{
+		Name:        subdomain,
+		keyNode:     &keyNode,
+		ContentNode: &contentNode,
+		Types:       make(map[string]*Record),
+	}
+
+	return
 }
 
 func (z *Zone) GetRecord(subdomain string, rtype string) (record *Record, err error) {
@@ -70,7 +117,7 @@ func (z *Zone) GetRecord(subdomain string, rtype string) (record *Record, err er
 	return
 }
 
-func (z *Zone) FindRecord(subdomain string) (record Subdomain, err error) {
+func (z *Zone) DeleteSubdomain(subdomain string) (err error) {
 
 	if subdomain == "@" {
 		subdomain = ""
@@ -87,19 +134,31 @@ func (z *Zone) FindRecord(subdomain string) (record Subdomain, err error) {
 	}
 
 	for i := 0; i < len(z.doc.Content[0].Content); i += 2 {
-		/*
-			switch z.doc.Content[0].Kind {
-			case yaml.DocumentNode:
-				fmt.Println("DocumentNode")
-			case yaml.MappingNode:
-				fmt.Println("MappingNode")
-			case yaml.SequenceNode:
-				fmt.Println("SequenceNode")
-			}
-		*/
+		if z.doc.Content[0].Content[i].Value == subdomain {
+			z.doc.Content[0].Content = slices.Delete(z.doc.Content[0].Content, i, i+2)
+			return nil
+		}
+	}
+	return nil
+}
 
-		//		log.Print("Found: ", z.doc.Content[0].Content[i].Value, " ", subdomain, " ", z.doc.Content[0].Content[i].Value == subdomain)
+func (z *Zone) FindSubdomain(subdomain string) (record Subdomain, err error) {
 
+	if subdomain == "@" {
+		subdomain = ""
+	}
+
+	if z.doc.Kind != yaml.DocumentNode {
+		err = fmt.Errorf("z.doc is not a document node")
+		return
+	}
+
+	if len(z.doc.Content[0].Content) == 0 {
+		err = fmt.Errorf(z.doc.Content[0].Value)
+		return
+	}
+
+	for i := 0; i < len(z.doc.Content[0].Content); i += 2 {
 		if z.doc.Content[0].Content[i].Value == subdomain {
 
 			record.SetYaml(z.doc.Content[0].Content[i], z.doc.Content[0].Content[i+1])
@@ -107,7 +166,7 @@ func (z *Zone) FindRecord(subdomain string) (record Subdomain, err error) {
 		}
 	}
 
-	return record, fmt.Errorf("subdomain not found")
+	return record, SubdomainNotFoundError
 }
 
 func (z *Zone) FindRecordByType(subdomain string, rtype string) (rrecord *yaml.Node, rcontent *yaml.Node, rparent *yaml.Node, err error) {
@@ -118,16 +177,6 @@ func (z *Zone) FindRecordByType(subdomain string, rtype string) (rrecord *yaml.N
 	}
 
 	for i := 0; i < len(z.doc.Content[0].Content); i += 2 {
-		/*
-			switch z.doc.Content[0].Kind {
-			case yaml.DocumentNode:
-				fmt.Println("DocumentNode")
-			case yaml.MappingNode:
-				fmt.Println("MappingNode")
-			case yaml.SequenceNode:
-				fmt.Println("SequenceNode")
-			}
-		*/
 
 		findType := func(root *yaml.Node, rtype string) *yaml.Node {
 			for i := 0; i < len(root.Content); i += 2 {
@@ -153,17 +202,12 @@ func (z *Zone) FindRecordByType(subdomain string, rtype string) (rrecord *yaml.N
 			_ = rparent
 			_ = rcontent
 
-			//fmt.Println("Found ", subdomain)
-
 			switch rcontent.Kind {
 			case yaml.MappingNode:
-				//fmt.Println("Map")
 				rrecord = findType(rcontent, rtype)
 				return
 			case yaml.SequenceNode:
-				//fmt.Println("Seq")
 				for y := 0; y < len(rcontent.Content); y += 1 {
-					fmt.Println("Y", y)
 					if rrecord = findType(rcontent.Content[y], rtype); rrecord != nil {
 						return
 					}
@@ -211,11 +255,7 @@ type OldZone struct {
 	Records []Record
 }
 
-func (z *OldZone) UnmarshalYAML(
-	value *yaml.Node,
-) error {
-	//fmt.Println("Blaats")
-
+func (z *OldZone) UnmarshalYAML(value *yaml.Node) error {
 	var items map[string]yaml.Node
 	if err := value.Decode(&items); err == nil {
 		for k, v := range items {
@@ -240,8 +280,6 @@ func (z *OldZone) UnmarshalYAML(
 			}
 			_ = records
 			z.Records = append(z.Records, records...)
-			//fmt.Println("Subdomain found:", len(records))
-
 		}
 		return nil
 	} else {
@@ -294,35 +332,3 @@ func decodeRecord(subdomain string, node yaml.Node) (Record, error) {
 	return record, err
 
 }
-
-/*
-func (z *Record) UnmarshalYAML(
-	value *yaml.Node,
-) error {
-	fmt.Println("2Blaat")
-	var name string
-	if err := value.Decode(&name); err == nil {
-		fmt.Println("2Blaat", name)
-		return nil
-	} else {
-		fmt.Println("2Error: ", err.Error())
-	}
-	return nil
-}
-*/
-/*
-func (z *OldZone) UnmarshalYAML(
-
-	unmarshal func(interface{}) error,
-
-	) error {
-		var name string
-		if err := unmarshal(&name); err == nil {
-			fmt.Println("Blaat", name)
-			return nil
-		} else {
-			fmt.Println("Error: ", err.Error())
-		}
-		return nil
-	}
-*/

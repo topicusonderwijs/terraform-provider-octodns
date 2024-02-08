@@ -117,7 +117,7 @@ func (d *SubdomainDataSource) Read(ctx context.Context, req datasource.ReadReque
 		return
 	}
 
-	r, err := zone.FindRecord(data.Name.ValueString())
+	r, err := zone.FindSubdomain(data.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read record, got error: %s", err))
 		return

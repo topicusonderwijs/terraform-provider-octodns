@@ -9,15 +9,37 @@ type Terraform struct {
 	Hash string `yaml:",omitempty"`
 }
 
+type OctodnsRecordConfig struct {
+	Cloudflare *OctodnsCloudflare `yaml:",omitempty"`
+	AzureDNS   *OctodnsAzureDNS   `yaml:",omitempty"`
+}
+
+type OctodnsCloudflare struct {
+	Proxied bool `yaml:",omitempty"`
+	AutoTTL bool `yaml:",omitempty"`
+}
+
+type OctodnsAzureDNS struct {
+	Healthcheck OctodnsAzureDNSHealthcheck `yaml:",omitempty"`
+}
+
+type OctodnsAzureDNSHealthcheck struct {
+	Interval    int `yaml:",omitempty"`
+	Timeout     int `yaml:",omitempty"`
+	NumFailures int `yaml:",omitempty"`
+}
+
 type BaseRecord struct {
 	RecordChild  *yaml.Node `yaml:"-"`
 	RecordNode   *yaml.Node `yaml:"-"`
 	RecordParent *yaml.Node `yaml:"-"`
+	IsDeleted    bool       `yaml:"-"`
 	Name         string
 	Type         string
 	Values       []RecordValue `yaml:"values" line_comment:"Enable or disable."`
 	TTL          int
 	Terraform    Terraform
+	Octodns      OctodnsRecordConfig
 }
 
 type Record struct {
@@ -26,15 +48,19 @@ type Record struct {
 }
 
 type recordYamlUnmarshal struct {
-	Name      string    `yaml:",omitempty"`
-	Type      string    `yaml:",omitempty"`
-	Value     yaml.Node `yaml:",omitempty"`
-	Values    yaml.Node `yaml:",omitempty"`
-	TTL       int       `yaml:",omitempty"`
-	Terraform Terraform `yaml:",omitempty"`
+	Name      string              `yaml:",omitempty"`
+	Type      string              `yaml:",omitempty"`
+	Value     yaml.Node           `yaml:",omitempty"`
+	Values    yaml.Node           `yaml:",omitempty"`
+	TTL       int                 `yaml:",omitempty"`
+	Terraform Terraform           `yaml:",omitempty"`
+	Octodns   OctodnsRecordConfig `yaml:",omitempty"`
 }
 
 func (r *Record) UpdateYaml() error {
+	if r.IsDeleted {
+		return nil
+	}
 	return r.RecordChild.Encode(r)
 }
 
@@ -54,6 +80,29 @@ func (r *Record) ValuesAsString() []string {
 	}
 
 	return ret
+}
+
+func (r *Record) ClearValues() {
+	r.Values = []RecordValue{}
+}
+
+func (r *Record) AddValueFromString(valueString string) {
+
+	var value RecordValue
+
+	switch r.Type {
+	default:
+		value = RecordValue{baseRecordValue{StringValue: &valueString}}
+		/*
+			case TYPE_MX.String():
+				value = append(ret, v.StringMX())
+			case TYPE_SRV.String():
+				value = append(ret, v.StringSRV())
+		*/
+	}
+
+	r.Values = append(r.Values, value)
+
 }
 
 func (r *Record) AddType(record Record) error {
@@ -76,8 +125,6 @@ func (r *Record) UnmarshalYAML(
 	value *yaml.Node,
 ) error {
 
-	//fmt.Println("Record.UnmarshalYAML")
-
 	raw := recordYamlUnmarshal{}
 
 	if err := value.Decode(&raw); err != nil {
@@ -87,8 +134,8 @@ func (r *Record) UnmarshalYAML(
 	r.TTL = raw.TTL
 	r.Terraform = raw.Terraform
 	r.Type = raw.Type
+	r.Octodns = raw.Octodns
 
-	//fmt.Println("Name:", r.Name, r.Type)
 	if !raw.Value.IsZero() {
 		rvValue := RecordValue{}
 		err := rvValue.UnmarshalYAML(&raw.Value)
@@ -105,8 +152,6 @@ func (r *Record) UnmarshalYAML(
 		r.Values = append(r.Values, rvValues...)
 	}
 
-	//fmt.Println("Count values:", len(r.Values), r.Values)
-
 	return nil
 }
 
@@ -116,6 +161,7 @@ func (r Record) MarshalYAML() (interface{}, error) {
 		Type:      r.Type,
 		TTL:       r.TTL,
 		Terraform: r.Terraform,
+		Octodns:   r.Octodns,
 	}
 	node := yaml.Node{}
 	var err error

@@ -5,12 +5,18 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/topicusonderwijs/terraform-provider-octodns/internal/models"
+	"log"
+	"net/url"
+	"os"
+	"os/exec"
+	"strings"
 )
 
 const ENVPREFIX = "OCTODNS_"
@@ -33,9 +39,14 @@ type OctodnsProviderModel struct {
 	GithubOrg         types.String `tfsdk:"github_org"`
 	GithubRepo        types.String `tfsdk:"github_repo"`
 
+	GitBranch      types.String `tfsdk:"branch"`
+	GitAuthorName  types.String `tfsdk:"author_name"`
+	GitAuthorEmail types.String `tfsdk:"author_email"`
+
 	Scopes []struct {
-		Name types.String `tfsdk:"name"`
-		Path types.String `tfsdk:"path"`
+		Name   types.String `tfsdk:"name"`
+		Path   types.String `tfsdk:"path"`
+		Branch types.String `tfsdk:"branch"`
 	} `tfsdk:"scope"`
 }
 
@@ -43,25 +54,6 @@ func (p *OctodnsProvider) Metadata(ctx context.Context, req provider.MetadataReq
 	resp.TypeName = "octodns"
 	resp.Version = p.version
 }
-
-/*
-	ctx := context.Background()
-	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: ""},
-	)
-	tc := oauth2.NewClient(ctx, ts)
-
-	client := github.NewClient(tc)
-
-	opt := &github.RepositoryListOptions{ListOptions: github.ListOptions{PerPage: 2}}
-	opt.Page = 2
-
-	//(fileContent *RepositoryContent, directoryContent []*RepositoryContent, resp *Response, err error) {
-
-	fileContent, dirContent, resp, err := client.Repositories.GetContents(ctx, "topicusonderwijs", "dns-topicus.education", "overlays/pdc/zones/pdc.topicus.education.yaml", nil)
-
-
-*/
 
 func (p *OctodnsProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
@@ -72,8 +64,8 @@ func (p *OctodnsProvider) Schema(ctx context.Context, req provider.SchemaRequest
 				Optional:            true,
 			},
 			"github_access_token": schema.StringAttribute{
-				MarkdownDescription: "Github personal access token",
-				Required:            true,
+				MarkdownDescription: "Github personal access token, if empty GithubCli (gh) will be used to get a token",
+				Optional:            true,
 				Sensitive:           true,
 			},
 			"github_org": schema.StringAttribute{
@@ -84,16 +76,34 @@ func (p *OctodnsProvider) Schema(ctx context.Context, req provider.SchemaRequest
 				MarkdownDescription: "Github personal access token",
 				Required:            true,
 			},
+			"branch": schema.StringAttribute{
+				MarkdownDescription: "The git branch to use",
+				Optional:            true,
+			},
+			"author_name": schema.StringAttribute{
+				MarkdownDescription: "The git branch to use",
+				Optional:            true,
+			},
+			"author_email": schema.StringAttribute{
+				MarkdownDescription: "The git branch to use",
+				Optional:            true,
+			},
 		},
 		Blocks: map[string]schema.Block{
 			"scope": schema.ListNestedBlock{
 				NestedObject: schema.NestedBlockObject{
 					Attributes: map[string]schema.Attribute{
 						"name": schema.StringAttribute{
-							Optional: true,
+							Optional:            true,
+							MarkdownDescription: "Name of this scope, leave empty for default scope",
 						},
 						"path": schema.StringAttribute{
-							Required: true,
+							Required:            true,
+							MarkdownDescription: "The git path to the folder containing the yaml files",
+						},
+						"branch": schema.StringAttribute{
+							Optional:            true,
+							MarkdownDescription: "The git branch to use for this scope",
 						},
 					},
 				},
@@ -117,17 +127,27 @@ func (p *OctodnsProvider) Configure(ctx context.Context, req provider.ConfigureR
 	}
 
 	gitprovider := "github"
+	githubToken := ""
 
 	// Configuration values are now available.
-	if data.GitProvider.IsNull() { /* ... */
+	if data.GitProvider.IsNull() || data.GitProvider.ValueString() == "github" { /* ... */
 		gitprovider = "github"
 
 		if data.GithubAccessToken.IsNull() {
-			resp.Diagnostics.AddError(
-				"Missing Github API access Configuration",
-				"While configuring the provider, the Github access token was not found in "+
-					"provider configuration block github_access_token attribute.",
-			)
+
+			var err error
+			githubToken, err = tokenFromGhCli("https://api.github.com/", true)
+
+			if err != nil || githubToken == "" {
+				resp.Diagnostics.AddError(
+					"Missing Github API access Configuration",
+					"While configuring the provider, the Github access token was not found in "+
+						"provider configuration block github_access_token attribute.",
+				)
+			}
+
+		} else {
+			githubToken = data.GithubAccessToken.ValueString()
 		}
 		if data.GithubOrg.IsNull() {
 			resp.Diagnostics.AddError(
@@ -144,19 +164,23 @@ func (p *OctodnsProvider) Configure(ctx context.Context, req provider.ConfigureR
 			)
 		}
 
-	} else if data.GitProvider.ValueString() != "github" { /* ... */
-		resp.Diagnostics.AddWarning(
+	} else { /* ... */
+		resp.Diagnostics.AddError(
 			"Unsupported Git Provider Configuration",
 			"While configuring the provider, an invalid value was found for git_provider attribute. "+
 				"Allowed values: github ",
 		)
 	}
 
+	if data.GitBranch.IsNull() {
+		data.GitBranch = types.StringValue("main")
+	}
+
 	var client models.GitClient
 	var err error
 	switch gitprovider {
 	default:
-		client, err = models.NewGitHubClient(data.GithubAccessToken.ValueString(), data.GithubOrg.ValueString(), data.GithubRepo.ValueString())
+		client, err = models.NewGitHubClient(githubToken, data.GithubOrg.ValueString(), data.GithubRepo.ValueString())
 	}
 
 	if err != nil {
@@ -167,12 +191,15 @@ func (p *OctodnsProvider) Configure(ctx context.Context, req provider.ConfigureR
 		)
 	}
 
+	_ = client.SetBranch(data.GitBranch.ValueString())
+	_ = client.SetAuthor(data.GitAuthorName.ValueString(), data.GitAuthorEmail.ValueString())
+
 	if len(data.Scopes) == 0 {
-		err = client.AddScope("default", "/zones")
+		err = client.AddScope("default", "/zones", "", "")
 	} else {
 		for _, v := range data.Scopes {
 
-			err = client.AddScope(v.Name.ValueString(), v.Path.ValueString())
+			err = client.AddScope(v.Name.ValueString(), v.Path.ValueString(), v.Branch.ValueString(), "")
 			if err != nil {
 				resp.Diagnostics.AddError("Could not add scope", err.Error())
 			}
@@ -188,7 +215,6 @@ func (p *OctodnsProvider) Configure(ctx context.Context, req provider.ConfigureR
 
 func (p *OctodnsProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
-		NewSubdomainResource,
 		NewARecordResource,
 		NewAAAARecordResource,
 		NewCAARecordResource,
@@ -209,7 +235,6 @@ func (p *OctodnsProvider) Resources(ctx context.Context) []func() resource.Resou
 
 func (p *OctodnsProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
-		NewSubdomainDataSource,
 		NewARecordDataSource,
 		NewAAAARecordDataSource,
 		NewCAARecordDataSource,
@@ -234,4 +259,43 @@ func New(version string) func() provider.Provider {
 			version: version,
 		}
 	}
+}
+
+// See https://github.com/integrations/terraform-provider-github/issues/1822
+func tokenFromGhCli(baseURL string, isGithubDotCom bool) (string, error) {
+	ghCliPath := os.Getenv("GH_PATH")
+	if ghCliPath == "" {
+		ghCliPath = "gh"
+	}
+	hostname := ""
+	if isGithubDotCom {
+		hostname = "github.com"
+	} else {
+		parsedURL, err := url.Parse(baseURL)
+		if err != nil {
+			return "", fmt.Errorf("parse %s: %w", baseURL, err)
+		}
+		hostname = parsedURL.Host
+	}
+	// GitHub CLI uses different base URLs in ~/.config/gh/hosts.yml, so when
+	// we're using the standard base path of this provider, it doesn't align
+	// with the way `gh` CLI stores the credentials. The following doesn't work:
+	//
+	// $ gh auth token --hostname api.github.com
+	// > no oauth token
+	//
+	// ... but the following does work correctly
+	//
+	// $ gh auth token --hostname github.com
+	// > gh..<valid token>
+	hostname = strings.TrimPrefix(hostname, "api.")
+	out, err := exec.Command(ghCliPath, "auth", "token", "--hostname", hostname).Output()
+	if err != nil {
+		// GH CLI is either not installed or there was no `gh auth login` command issued,
+		// which is fine. don't return the error to keep the flow going
+		return "", nil
+	}
+
+	log.Printf("[INFO] Using the token from GitHub CLI")
+	return strings.TrimSpace(string(out)), nil
 }

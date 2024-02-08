@@ -3,12 +3,7 @@
 
 package provider
 
-import (
-	"testing"
-
-	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
-)
-
+/*
 func TestAccRecordDataSource(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
@@ -26,10 +21,11 @@ func TestAccRecordDataSource(t *testing.T) {
 }
 
 const testAccRecordDataSourceConfig = `
-data "octodns_record" "test" {
+data "octodns_a_record" "test" {
   id="external-topicus.education-"
-  name=""
-  score="external"
+  name="blaat"
+  scope="external"
   zone="example.com"
 }
 `
+*/

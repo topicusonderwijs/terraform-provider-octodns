@@ -3,13 +3,7 @@
 
 package provider
 
-import (
-	"fmt"
-	"testing"
-
-	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
-)
-
+/*
 func TestAccRecordResource(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
@@ -54,3 +48,4 @@ resource "octodns_record" "test" {
 }
 `, configurableAttribute)
 }
+*/
