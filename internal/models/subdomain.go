@@ -29,7 +29,7 @@ func (r *Subdomain) SetYaml(key, content *yaml.Node) {
 func (r *Subdomain) FindAllType() {
 
 	for _, v := range TYPES {
-		if v.IsEnabled() == true {
+		if v.IsEnabled() {
 			_, _ = r.GetType(v.String())
 		}
 	}

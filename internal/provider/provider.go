@@ -195,7 +195,8 @@ func (p *OctodnsProvider) Configure(ctx context.Context, req provider.ConfigureR
 	_ = client.SetAuthor(data.GitAuthorName.ValueString(), data.GitAuthorEmail.ValueString())
 
 	if len(data.Scopes) == 0 {
-		err = client.AddScope("default", "/zones", "", "")
+		// Add scope will add the default values for "" parameters
+		_ = client.AddScope("", "", "", "")
 	} else {
 		for _, v := range data.Scopes {
 
@@ -289,12 +290,9 @@ func tokenFromGhCli(baseURL string, isGithubDotCom bool) (string, error) {
 	// $ gh auth token --hostname github.com
 	// > gh..<valid token>
 	hostname = strings.TrimPrefix(hostname, "api.")
-	out, err := exec.Command(ghCliPath, "auth", "token", "--hostname", hostname).Output()
-	if err != nil {
-		// GH CLI is either not installed or there was no `gh auth login` command issued,
-		// which is fine. don't return the error to keep the flow going
-		return "", nil
-	}
+	out, _ := exec.Command(ghCliPath, "auth", "token", "--hostname", hostname).Output()
+	// GH CLI is either not installed or there was no `gh auth login` command issued,
+	// which is fine. don't return the error to keep the flow going
 
 	log.Printf("[INFO] Using the token from GitHub CLI")
 	return strings.TrimSpace(string(out)), nil

@@ -115,6 +115,7 @@ func (g *GitHubClient) GetScope(name string) (scope Scope, err error) {
 	return
 }
 
+/*
 func (g *GitHubClient) createFilePath(zone, scope string) (string, error) {
 
 	sc, err := g.GetScope(scope)
@@ -122,8 +123,8 @@ func (g *GitHubClient) createFilePath(zone, scope string) (string, error) {
 		return "", err
 	}
 	return fmt.Sprintf("%s/%s.%s", sc.Path, zone, sc.Ext), nil
-
 }
+*/
 
 func (g *GitHubClient) GetZone(zone, scope string) (*Zone, error) {
 

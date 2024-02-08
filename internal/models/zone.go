@@ -285,7 +285,6 @@ func (z *OldZone) UnmarshalYAML(value *yaml.Node) error {
 	} else {
 		return err
 	}
-	return nil
 }
 
 func (z OldZone) MarshalYAML() (interface{}, error) {

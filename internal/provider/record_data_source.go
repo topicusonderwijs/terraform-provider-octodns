@@ -18,77 +18,48 @@ import (
 // Ensure provider defined types fully satisfy framework interfaces.
 var _ datasource.DataSource = &RecordDataSource{}
 
-// RTYPE_A      RType = "a"
 func NewARecordDataSource() datasource.DataSource {
 	return &RecordDataSource{rtype: &models.TYPE_A}
 }
-
-// RTYPE_AAAA   RType = "aaaa"
 func NewAAAARecordDataSource() datasource.DataSource {
 	return &RecordDataSource{rtype: &models.TYPE_AAAA}
 }
-
-// RTYPE_CAA    RType = "caa"
 func NewCAARecordDataSource() datasource.DataSource {
 	return &RecordDataSource{rtype: &models.TYPE_CAA}
 }
-
-// RTYPE_CNAME  RType = "cname"
 func NewCNAMERecordDataSource() datasource.DataSource {
 	return &RecordDataSource{rtype: &models.TYPE_CNAME}
 }
-
-// RTYPE_DNAME  RType = "dname"
 func NewDNAMERecordDataSource() datasource.DataSource {
 	return &RecordDataSource{rtype: &models.TYPE_DNAME}
 }
-
-// RTYPE_LOC    RType = "loc"
 func NewLOCRecordDataSource() datasource.DataSource {
 	return &RecordDataSource{rtype: &models.TYPE_LOC}
 }
-
-// RTYPE_MX     RType = "mx"
 func NewMXRecordDataSource() datasource.DataSource {
 	return &RecordDataSource{rtype: &models.TYPE_MX}
 }
-
-// RTYPE_NAPTR  RType = "naptr"
 func NewNAPTRRecordDataSource() datasource.DataSource {
 	return &RecordDataSource{rtype: &models.TYPE_NAPTR}
 }
-
-// RTYPE_NS     RType = "ns"
 func NewNSRecordDataSource() datasource.DataSource {
 	return &RecordDataSource{rtype: &models.TYPE_NS}
 }
-
-// RTYPE_PTR    RType = "ptr"
 func NewPTRRecordDataSource() datasource.DataSource {
 	return &RecordDataSource{rtype: &models.TYPE_PTR}
 }
-
-// RTYPE_SPF    RType = "spf"
 func NewSPFRecordDataSource() datasource.DataSource {
 	return &RecordDataSource{rtype: &models.TYPE_SPF}
 }
-
-// RTYPE_SRV    RType = "srv"
 func NewSRVRecordDataSource() datasource.DataSource {
 	return &RecordDataSource{rtype: &models.TYPE_SRV}
 }
-
-// RTYPE_SSHFP  RType = "sshfp"
 func NewSSHFPRecordDataSource() datasource.DataSource {
 	return &RecordDataSource{rtype: &models.TYPE_SSHFP}
 }
-
-// RTYPE_TXT    RType = "txt"
 func NewTXTRecordDataSource() datasource.DataSource {
 	return &RecordDataSource{rtype: &models.TYPE_TXT}
 }
-
-// RTYPE_URLFWD RType = "urlfwd"
 func NewURLFWDRecordDataSource() datasource.DataSource {
 	return &RecordDataSource{rtype: &models.TYPE_URLFWD}
 }

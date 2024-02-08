@@ -23,77 +23,48 @@ import (
 var _ resource.Resource = &RecordResource{}
 var _ resource.ResourceWithImportState = &RecordResource{}
 
-// RTYPE_A      RType = "a"
 func NewARecordResource() resource.Resource {
 	return &RecordResource{rtype: &models.TYPE_A}
 }
-
-// RTYPE_AAAA   RType = "aaaa"
 func NewAAAARecordResource() resource.Resource {
 	return &RecordResource{rtype: &models.TYPE_AAAA}
 }
-
-// RTYPE_CAA    RType = "caa"
 func NewCAARecordResource() resource.Resource {
 	return &RecordResource{rtype: &models.TYPE_CAA}
 }
-
-// RTYPE_CNAME  RType = "cname"
 func NewCNAMERecordResource() resource.Resource {
 	return &RecordResource{rtype: &models.TYPE_CNAME}
 }
-
-// RTYPE_DNAME  RType = "dname"
 func NewDNAMERecordResource() resource.Resource {
 	return &RecordResource{rtype: &models.TYPE_DNAME}
 }
-
-// RTYPE_LOC    RType = "loc"
 func NewLOCRecordResource() resource.Resource {
 	return &RecordResource{rtype: &models.TYPE_LOC}
 }
-
-// RTYPE_MX     RType = "mx"
 func NewMXRecordResource() resource.Resource {
 	return &RecordResource{rtype: &models.TYPE_MX}
 }
-
-// RTYPE_NAPTR  RType = "naptr"
 func NewNAPTRRecordResource() resource.Resource {
 	return &RecordResource{rtype: &models.TYPE_NAPTR}
 }
-
-// RTYPE_NS     RType = "ns"
 func NewNSRecordResource() resource.Resource {
 	return &RecordResource{rtype: &models.TYPE_NS}
 }
-
-// RTYPE_PTR    RType = "ptr"
 func NewPTRRecordResource() resource.Resource {
 	return &RecordResource{rtype: &models.TYPE_PTR}
 }
-
-// RTYPE_SPF    RType = "spf"
 func NewSPFRecordResource() resource.Resource {
 	return &RecordResource{rtype: &models.TYPE_SPF}
 }
-
-// RTYPE_SRV    RType = "srv"
 func NewSRVRecordResource() resource.Resource {
 	return &RecordResource{rtype: &models.TYPE_SRV}
 }
-
-// RTYPE_SSHFP  RType = "sshfp"
 func NewSSHFPRecordResource() resource.Resource {
 	return &RecordResource{rtype: &models.TYPE_SSHFP}
 }
-
-// RTYPE_TXT    RType = "txt"
 func NewTXTRecordResource() resource.Resource {
 	return &RecordResource{rtype: &models.TYPE_TXT}
 }
-
-// RTYPE_URLFWD RType = "urlfwd"
 func NewURLFWDRecordResource() resource.Resource {
 	return &RecordResource{rtype: &models.TYPE_URLFWD}
 }
@@ -228,8 +199,8 @@ func (r *RecordResource) fillRecordFromData(data *RecordModel, record *models.Re
 
 		if data.Octodns.Cloudflare != nil {
 			record.Octodns.Cloudflare = &models.OctodnsCloudflare{
-				data.Octodns.Cloudflare.Proxied.ValueBool(),
-				data.Octodns.Cloudflare.AutoTTL.ValueBool(),
+				Proxied: data.Octodns.Cloudflare.Proxied.ValueBool(),
+				AutoTTL: data.Octodns.Cloudflare.AutoTTL.ValueBool(),
 			}
 		}
 
@@ -343,6 +314,10 @@ func (r *RecordResource) Read(ctx context.Context, req resource.ReadRequest, res
 	}
 
 	record, err := subdomain.GetType(r.rtype.String())
+	if err != nil {
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read type, got error: %s", err))
+		return
+	}
 
 	data.TTL = types.Int64Value(int64(record.TTL))
 	data.Values = []types.String{}
