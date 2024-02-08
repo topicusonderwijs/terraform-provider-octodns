@@ -9,4 +9,3 @@ provider "octodns" {
   }
 
 }
-

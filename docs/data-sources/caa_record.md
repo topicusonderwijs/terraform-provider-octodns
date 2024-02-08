@@ -3,12 +3,12 @@
 page_title: "octodns_caa_record Data Source - terraform-provider-octodns"
 subcategory: ""
 description: |-
-  Record data source
+  CAA record data source
 ---
 
 # octodns_caa_record (Data Source)
 
-Record data source
+CAA record data source
 
 
 
@@ -17,8 +17,8 @@ Record data source
 
 ### Required
 
-- `name` (String) Record Zone
-- `zone` (String) Record Zone
+- `name` (String) Record Name
+- `zone` (String) Zone of the record
 
 ### Optional
 
@@ -27,5 +27,32 @@ Record data source
 ### Read-Only
 
 - `id` (String) Record identifier
-- `ttl` (Number)
-- `values` (List of String)
+- `octodns` (Attributes) Additional octodns config for the records (see [below for nested schema](#nestedatt--octodns))
+- `ttl` (Number) TTL of the record, if not set the zone's or dns server setting is used
+- `values` (List of String) Values of the record, should confirm to record type
+
+<a id="nestedatt--octodns"></a>
+### Nested Schema for `octodns`
+
+Read-Only:
+
+- `azuredns` (Attributes) Azure healthcheck configuration (see [below for nested schema](#nestedatt--octodns--azuredns))
+- `cloudflare` (Attributes) (see [below for nested schema](#nestedatt--octodns--cloudflare))
+
+<a id="nestedatt--octodns--azuredns"></a>
+### Nested Schema for `octodns.azuredns`
+
+Read-Only:
+
+- `hc_interval` (Number) Azure healthcheck interval
+- `hc_numfailures` (Number) Azure healthcheck number of failures allowed
+- `hc_timeout` (Number) Azure healthcheck timeout
+
+
+<a id="nestedatt--octodns--cloudflare"></a>
+### Nested Schema for `octodns.cloudflare`
+
+Read-Only:
+
+- `auto_ttl` (Boolean) Use cloudflare's auto-ttl *feature*, aka: set to 300
+- `proxied` (Boolean) Should cloudflare proxy this record (only for A/AAAA records)

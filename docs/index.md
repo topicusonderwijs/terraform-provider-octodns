@@ -31,13 +31,16 @@ provider "octodns" {
 
 ### Required
 
-- `github_access_token` (String, Sensitive) Github personal access token
-- `github_org` (String) Github personal access token
-- `github_repo` (String) Github personal access token
+- `github_org` (String) Github organisation
+- `github_repo` (String) Github repository
 
 ### Optional
 
-- `git_provider` (String) Git provider, only accepted value is github
+- `author_email` (String) The Author email used in commits, defaults to owner of github token
+- `author_name` (String) The Author name used in commits, defaults to owner of github token
+- `branch` (String) The git branch to use, defaults to main
+- `git_provider` (String) Git provider, only accepted/supported value for now is github
+- `github_access_token` (String, Sensitive) Github personal access token, if empty GithubCli (gh) will be used to get a token
 - `scope` (Block List) (see [below for nested schema](#nestedblock--scope))
 
 <a id="nestedblock--scope"></a>
@@ -45,8 +48,9 @@ provider "octodns" {
 
 Required:
 
-- `path` (String)
+- `path` (String) The git path to the folder containing the yaml files
 
 Optional:
 
-- `name` (String)
+- `branch` (String) The git branch to use for this scope, defaults to provider branch setting
+- `name` (String) Unique name of this scope, leave empty for default scope.

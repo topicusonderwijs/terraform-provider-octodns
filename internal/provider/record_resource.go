@@ -86,11 +86,11 @@ func (r *RecordResource) Metadata(ctx context.Context, req resource.MetadataRequ
 func (r *RecordResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		// This description is used by the documentation generator and the language server.
-		MarkdownDescription: "Record resource",
+		MarkdownDescription: r.rtype.String() + " record resource",
 
 		Attributes: map[string]schema.Attribute{
 			"zone": schema.StringAttribute{
-				MarkdownDescription: "Record Zone",
+				MarkdownDescription: "Zone of the record. eq: example.com",
 				Required:            true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
@@ -104,7 +104,7 @@ func (r *RecordResource) Schema(ctx context.Context, req resource.SchemaRequest,
 				},
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: "Record Zone",
+				MarkdownDescription: "Record name. eq: <name>.example.com",
 				Required:            true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
@@ -122,37 +122,44 @@ func (r *RecordResource) Schema(ctx context.Context, req resource.SchemaRequest,
 				Required:    true,
 			},
 			"ttl": schema.Int64Attribute{
-				Optional: true,
-				Computed: true,
-				Default:  int64default.StaticInt64(3600),
+				Optional:            true,
+				Computed:            true,
+				Default:             int64default.StaticInt64(3600),
+				MarkdownDescription: "TTL of the record, leave empty for zone of server defaults",
 			},
 			"octodns": schema.SingleNestedAttribute{
-				MarkdownDescription: "octodns config",
+				MarkdownDescription: "Additional octodns config for the records",
 				Optional:            true,
 				Computed:            true,
 				Attributes: map[string]schema.Attribute{
 					"cloudflare": schema.SingleNestedAttribute{
 						Attributes: map[string]schema.Attribute{
 							"proxied": schema.BoolAttribute{
-								Optional: true,
+								MarkdownDescription: "Should cloudflare proxy this record (only for A/AAAA records)",
+								Optional:            true,
 							},
 							"auto_ttl": schema.BoolAttribute{
-								Optional: true,
+								MarkdownDescription: "Use cloudflare's auto-ttl *feature*, aka: set to 300",
+								Optional:            true,
 							},
 						},
 						Computed: true,
 						Optional: true,
 					},
 					"azuredns": schema.SingleNestedAttribute{
+						MarkdownDescription: "Azure healthcheck configuration",
 						Attributes: map[string]schema.Attribute{
 							"hc_interval": schema.Int64Attribute{
-								Optional: true,
+								MarkdownDescription: "Azure healthcheck interval",
+								Optional:            true,
 							},
 							"hc_timeout": schema.Int64Attribute{
-								Optional: true,
+								MarkdownDescription: "Azure healthcheck timeout",
+								Optional:            true,
 							},
 							"hc_numfailures": schema.Int64Attribute{
-								Optional: true,
+								MarkdownDescription: "Azure healthcheck number of failures allowed",
+								Optional:            true,
 							},
 						},
 						Optional: true,

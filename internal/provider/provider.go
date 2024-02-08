@@ -60,7 +60,7 @@ func (p *OctodnsProvider) Schema(ctx context.Context, req provider.SchemaRequest
 
 		Attributes: map[string]schema.Attribute{
 			"git_provider": schema.StringAttribute{
-				MarkdownDescription: "Git provider, only accepted value is github",
+				MarkdownDescription: "Git provider, only accepted/supported value for now is github",
 				Optional:            true,
 			},
 			"github_access_token": schema.StringAttribute{
@@ -69,23 +69,23 @@ func (p *OctodnsProvider) Schema(ctx context.Context, req provider.SchemaRequest
 				Sensitive:           true,
 			},
 			"github_org": schema.StringAttribute{
-				MarkdownDescription: "Github personal access token",
+				MarkdownDescription: "Github organisation",
 				Required:            true,
 			},
 			"github_repo": schema.StringAttribute{
-				MarkdownDescription: "Github personal access token",
+				MarkdownDescription: "Github repository",
 				Required:            true,
 			},
 			"branch": schema.StringAttribute{
-				MarkdownDescription: "The git branch to use",
+				MarkdownDescription: "The git branch to use, defaults to main",
 				Optional:            true,
 			},
 			"author_name": schema.StringAttribute{
-				MarkdownDescription: "The git branch to use",
+				MarkdownDescription: "The Author name used in commits, defaults to owner of github token",
 				Optional:            true,
 			},
 			"author_email": schema.StringAttribute{
-				MarkdownDescription: "The git branch to use",
+				MarkdownDescription: "The Author email used in commits, defaults to owner of github token",
 				Optional:            true,
 			},
 		},
@@ -95,7 +95,7 @@ func (p *OctodnsProvider) Schema(ctx context.Context, req provider.SchemaRequest
 					Attributes: map[string]schema.Attribute{
 						"name": schema.StringAttribute{
 							Optional:            true,
-							MarkdownDescription: "Name of this scope, leave empty for default scope",
+							MarkdownDescription: "Unique name of this scope, leave empty for default scope.",
 						},
 						"path": schema.StringAttribute{
 							Required:            true,
@@ -103,7 +103,7 @@ func (p *OctodnsProvider) Schema(ctx context.Context, req provider.SchemaRequest
 						},
 						"branch": schema.StringAttribute{
 							Optional:            true,
-							MarkdownDescription: "The git branch to use for this scope",
+							MarkdownDescription: "The git branch to use for this scope, defaults to provider branch setting",
 						},
 					},
 				},
