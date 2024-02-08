@@ -1,6 +1,6 @@
 module github.com/topicusonderwijs/terraform-provider-octodns
 
-go 1.19
+go 1.21
 
 require (
 	github.com/google/go-github/v55 v55.0.0
