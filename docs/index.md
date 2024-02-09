@@ -3,22 +3,23 @@
 page_title: "octodns Provider"
 subcategory: ""
 description: |-
-  Warning: This provider is still a work-in-progress so use on your own risk
+  Warning: This provider is still a work-in-progress so use at your own risk
   This provider allows you to modify your OctoDNS zone yaml files within a github repo,
   and can handle multiple zone directories within one git repo by defining multiple scopes
-  note: This provider can only manage records within existing zone files, it cannot manage/create zone files alter octodns config
-  also this provider does not run octodns after a modification, so you need your own automation for that like the octodns github action
+  note: This provider can only manage records within existing zone files, it cannot manage/create zone files or alter the OctoDNS config.
+  Also this provider does not run OctoDNS after a modification, so you need your own automation for that like the OctoDNS github action
 ---
 
 # octodns Provider
 
-**Warning**: This provider is still a work-in-progress so use on your own risk
+**Warning**: This provider is still a work-in-progress so use at your own risk
 
 This provider allows you to modify your OctoDNS zone yaml files within a github repo,
 and can handle multiple zone directories within one git repo by defining multiple scopes
 
-note: This provider can only manage records within existing zone files, it **cannot** manage/create zone files alter octodns config
-also this provider does not run octodns after a modification, so you need your own automation for that like the octodns github action
+note: This provider can only manage records within existing zone files, it **cannot** manage/create zone files or alter the OctoDNS config.
+
+Also this provider does not run OctoDNS after a modification, so you need your own automation for that like the OctoDNS github action
 
 ## Example Usage
 

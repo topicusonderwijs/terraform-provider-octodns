@@ -57,11 +57,11 @@ func (p *OctodnsProvider) Metadata(ctx context.Context, req provider.MetadataReq
 
 func (p *OctodnsProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "**Warning**: This provider is still a work-in-progress so use on your own risk\n\n" +
+		MarkdownDescription: "**Warning**: This provider is still a work-in-progress so use at your own risk\n\n" +
 			"This provider allows you to modify your OctoDNS zone yaml files within a github repo,\n" +
 			"and can handle multiple zone directories within one git repo by defining multiple scopes\n\n" +
-			"note: This provider can only manage records within existing zone files, it **cannot** manage/create zone files alter octodns config\n" +
-			"also this provider does not run octodns after a modification, so you need your own automation for that like the octodns github action",
+			"note: This provider can only manage records within existing zone files, it **cannot** manage/create zone files or alter the OctoDNS config.\n\n" +
+			"Also this provider does not run OctoDNS after a modification, so you need your own automation for that like the OctoDNS github action",
 		Attributes: map[string]schema.Attribute{
 			"git_provider": schema.StringAttribute{
 				MarkdownDescription: "Git provider, only accepted/supported value for now is github",
