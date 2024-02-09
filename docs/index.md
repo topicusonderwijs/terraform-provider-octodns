@@ -3,12 +3,22 @@
 page_title: "octodns Provider"
 subcategory: ""
 description: |-
-  
+  Warning: This provider is still a work-in-progress so use on your own risk
+  This provider allows you to modify your OctoDNS zone yaml files within a github repo,
+  and can handle multiple zone directories within one git repo by defining multiple scopes
+  note: This provider can only manage records within existing zone files, it cannot manage/create zone files alter octodns config
+  also this provider does not run octodns after a modification, so you need your own automation for that like the octodns github action
 ---
 
 # octodns Provider
 
+**Warning**: This provider is still a work-in-progress so use on your own risk
 
+This provider allows you to modify your OctoDNS zone yaml files within a github repo,
+and can handle multiple zone directories within one git repo by defining multiple scopes
+
+note: This provider can only manage records within existing zone files, it **cannot** manage/create zone files alter octodns config
+also this provider does not run octodns after a modification, so you need your own automation for that like the octodns github action
 
 ## Example Usage
 
@@ -19,8 +29,23 @@ provider "octodns" {
   github_repo         = "dns_repo"
 
   scope {
-    name = "default"
     path = "zones"
+  }
+
+}
+
+
+provider "octodns" {
+  github_access_token = "ghp_xxxxxxxxxxxxx"
+  github_org          = "example_org"
+  github_repo         = "dns_repo"
+
+  scope {
+    path = "internal/zones"
+  }
+  scope {
+    name = "external"
+    path = "external/zones"
   }
 
 }
@@ -40,7 +65,7 @@ provider "octodns" {
 - `author_name` (String) The Author name used in commits, defaults to owner of github token
 - `branch` (String) The git branch to use, defaults to main
 - `git_provider` (String) Git provider, only accepted/supported value for now is github
-- `github_access_token` (String, Sensitive) Github personal access token, if empty GithubCli (gh) will be used to get a token
+- `github_access_token` (String, Sensitive) Github personal access token, if not set the environment variable `GITHUB_TOKEN` or the `Github Cli (gh)` command will be used to get a token
 - `scope` (Block List) (see [below for nested schema](#nestedblock--scope))
 
 <a id="nestedblock--scope"></a>

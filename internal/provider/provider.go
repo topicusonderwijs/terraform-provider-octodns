@@ -57,14 +57,18 @@ func (p *OctodnsProvider) Metadata(ctx context.Context, req provider.MetadataReq
 
 func (p *OctodnsProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
-
+		MarkdownDescription: "**Warning**: This provider is still a work-in-progress so use on your own risk\n\n" +
+			"This provider allows you to modify your OctoDNS zone yaml files within a github repo,\n" +
+			"and can handle multiple zone directories within one git repo by defining multiple scopes\n\n" +
+			"note: This provider can only manage records within existing zone files, it **cannot** manage/create zone files alter octodns config\n" +
+			"also this provider does not run octodns after a modification, so you need your own automation for that like the octodns github action",
 		Attributes: map[string]schema.Attribute{
 			"git_provider": schema.StringAttribute{
 				MarkdownDescription: "Git provider, only accepted/supported value for now is github",
 				Optional:            true,
 			},
 			"github_access_token": schema.StringAttribute{
-				MarkdownDescription: "Github personal access token, if empty GithubCli (gh) will be used to get a token",
+				MarkdownDescription: "Github personal access token, if not set the environment variable `GITHUB_TOKEN` or the `Github Cli (gh)` command will be used to get a token",
 				Optional:            true,
 				Sensitive:           true,
 			},
@@ -119,6 +123,7 @@ func (p *OctodnsProvider) Schema(ctx context.Context, req provider.SchemaRequest
 
 func (p *OctodnsProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
 	var data OctodnsProviderModel
+	var err error
 
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 
@@ -133,22 +138,30 @@ func (p *OctodnsProvider) Configure(ctx context.Context, req provider.ConfigureR
 	if data.GitProvider.IsNull() || data.GitProvider.ValueString() == "github" { /* ... */
 		gitprovider = "github"
 
-		if data.GithubAccessToken.IsNull() {
-
-			var err error
-			githubToken, err = tokenFromGhCli("https://api.github.com/", true)
-
-			if err != nil || githubToken == "" {
-				resp.Diagnostics.AddError(
-					"Missing Github API access Configuration",
-					"While configuring the provider, the Github access token was not found in "+
-						"provider configuration block github_access_token attribute.",
-				)
-			}
-
-		} else {
+		// First check if accesstoken is configured
+		if !data.GithubAccessToken.IsNull() {
 			githubToken = data.GithubAccessToken.ValueString()
 		}
+
+		// If not check if env variable GITHUB_TOKEN is set
+		if githubToken == "" {
+			githubToken = os.Getenv("GITHUB_TOKEN")
+		}
+
+		// If still no token set try GitHub CLI command
+		if githubToken == "" {
+			githubToken, err = tokenFromGhCli("https://api.github.com/", true)
+		}
+
+		// No more sources for a token so error
+		if err != nil || githubToken == "" {
+			resp.Diagnostics.AddError(
+				"Missing Github API access Configuration",
+				"While configuring the provider, the Github access token was not found in "+
+					"provider configuration block github_access_token attribute.",
+			)
+		}
+
 		if data.GithubOrg.IsNull() {
 			resp.Diagnostics.AddError(
 				"Missing Github Organisation Configuration",
@@ -177,7 +190,7 @@ func (p *OctodnsProvider) Configure(ctx context.Context, req provider.ConfigureR
 	}
 
 	var client models.GitClient
-	var err error
+
 	switch gitprovider {
 	default:
 		client, err = models.NewGitHubClient(githubToken, data.GithubOrg.ValueString(), data.GithubRepo.ValueString())
