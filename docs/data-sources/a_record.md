@@ -13,16 +13,12 @@ A record data source
 ## Example Usage
 
 ```terraform
-data "octodns_a_record" "default_scope" {
-  zone = "example.com"
+data "octodns_a_record" "root" {
+  zone = "unit.tests"
   name = "@"
 }
-
-
-data "octodns_a_record" "custom_scope" {
-  zone  = "example.com"
-  scope = "internal"
-  name  = "www"
+output "a_record" {
+  value = data.octodns_a_record.root
 }
 ```
 

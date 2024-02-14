@@ -18,13 +18,13 @@ PTR record resource
 ### Required
 
 - `name` (String) Record name. eq: <name>.example.com
-- `scope` (String) Scope of zone
 - `values` (List of String)
 - `zone` (String) Zone of the record. eq: example.com
 
 ### Optional
 
 - `octodns` (Attributes) Additional octodns config for the records (see [below for nested schema](#nestedatt--octodns))
+- `scope` (String) Scope of zone
 - `ttl` (Number) TTL of the record, leave empty for zone of server defaults
 
 ### Read-Only

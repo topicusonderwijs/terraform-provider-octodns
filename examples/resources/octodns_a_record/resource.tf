@@ -1,17 +1,8 @@
-resource "octodns_a_record" "localhost" {
+resource "octodns_a_record" "root" {
   zone   = "example.com"
-  name   = "localhost"
-  ttl    = 3600
-  values = ["127.0.0.1"]
-  octodns = {
-    cloudflare = {
-      proxied = true
-    }
-  }
+  name   = "@"
+  ttl    = 300
+  values = ["1.2.3.4", "5.6.7.8"]
 }
 
-resource "octodns_a_record" "minimal" {
-  zone   = "example.com"
-  name   = "www"
-  values = ["127.0.0.1"]
-}
+

@@ -13,22 +13,11 @@ A record resource
 ## Example Usage
 
 ```terraform
-resource "octodns_a_record" "localhost" {
+resource "octodns_a_record" "root" {
   zone   = "example.com"
-  name   = "localhost"
-  ttl    = 3600
-  values = ["127.0.0.1"]
-  octodns = {
-    cloudflare = {
-      proxied = true
-    }
-  }
-}
-
-resource "octodns_a_record" "minimal" {
-  zone   = "example.com"
-  name   = "www"
-  values = ["127.0.0.1"]
+  name   = "@"
+  ttl    = 300
+  values = ["1.2.3.4", "5.6.7.8"]
 }
 ```
 
@@ -38,13 +27,13 @@ resource "octodns_a_record" "minimal" {
 ### Required
 
 - `name` (String) Record name. eq: <name>.example.com
-- `scope` (String) Scope of zone
 - `values` (List of String)
 - `zone` (String) Zone of the record. eq: example.com
 
 ### Optional
 
 - `octodns` (Attributes) Additional octodns config for the records (see [below for nested schema](#nestedatt--octodns))
+- `scope` (String) Scope of zone
 - `ttl` (Number) TTL of the record, leave empty for zone of server defaults
 
 ### Read-Only

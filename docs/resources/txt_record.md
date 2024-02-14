@@ -13,10 +13,15 @@ TXT record resource
 ## Example Usage
 
 ```terraform
-resource "octodns_txt_record" "minimal" {
-  zone   = "example.com"
-  name   = "www"
-  values = ["v=spf1 a -all"]
+resource "octodns_txt_record" "root" {
+  zone = "example.com"
+  name = "@"
+  ttl  = 300
+  values = [
+    "Bah bah black sheep",
+    "have you any wool.",
+    "v=DKIM1\\;k=rsa\\;s=email\\;h=sha256\\;p=A/kinda+of/long/string+with+numb3rs",
+  ]
 }
 ```
 
@@ -26,13 +31,13 @@ resource "octodns_txt_record" "minimal" {
 ### Required
 
 - `name` (String) Record name. eq: <name>.example.com
-- `scope` (String) Scope of zone
 - `values` (List of String)
 - `zone` (String) Zone of the record. eq: example.com
 
 ### Optional
 
 - `octodns` (Attributes) Additional octodns config for the records (see [below for nested schema](#nestedatt--octodns))
+- `scope` (String) Scope of zone
 - `ttl` (Number) TTL of the record, leave empty for zone of server defaults
 
 ### Read-Only
