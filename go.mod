@@ -3,6 +3,7 @@ module github.com/topicusonderwijs/terraform-provider-octodns
 go 1.21
 
 require (
+	github.com/google/go-cmp v0.6.0
 	github.com/google/go-github/v55 v55.0.0
 	github.com/hashicorp/terraform-plugin-docs v0.18.0
 	github.com/hashicorp/terraform-plugin-framework v1.5.0

@@ -74,7 +74,16 @@ func (r *Record) ValuesAsString() []string {
 			ret = append(ret, v.StringMX())
 		case TYPE_SRV.String():
 			ret = append(ret, v.StringSRV())
-
+		case TYPE_CAA.String():
+			ret = append(ret, v.StringCAA())
+		case TYPE_URLFWD.String():
+			ret = append(ret, v.StringURLFWD())
+		case TYPE_SSHFP.String():
+			ret = append(ret, v.StringSSHFP())
+		case TYPE_NAPTR.String():
+			ret = append(ret, v.StringNAPTR())
+		case TYPE_LOC.String():
+			ret = append(ret, v.StringLOC())
 		}
 
 	}
@@ -170,11 +179,9 @@ func (r Record) MarshalYAML() (interface{}, error) {
 	}
 	if len(r.Values) > 1 {
 		err = node.Encode(r.Values)
-		node.LineComment = "Blaat"
 		out.Values = node
 	} else {
 		err = node.Encode(r.Values[0])
-		node.LineComment = "Blaat"
 		out.Value = node
 	}
 	if err != nil {
@@ -212,18 +219,18 @@ type baseRecordValue struct {
 	//Priority   int    `yaml:",omitempty"`
 
 	// LOC
-	Altitude       *int     `yaml:",omitempty"`
-	Lat_degrees    *int     `yaml:",omitempty"`
-	Lat_direction  *string  `yaml:",omitempty"`
-	Lat_minutes    *int     `yaml:",omitempty"`
-	Lat_seconds    *float64 `yaml:",omitempty"`
-	Long_degrees   *int     `yaml:",omitempty"`
-	Long_direction *string  `yaml:",omitempty"`
-	Long_minutes   *int     `yaml:",omitempty"`
-	Long_seconds   *float64 `yaml:",omitempty"`
-	Precision_horz *int     `yaml:",omitempty"`
-	Precision_vert *int     `yaml:",omitempty"`
-	Size           *int     `yaml:",omitempty"`
+	Altitude      *float64 `yaml:",omitempty"`
+	LatDegrees    *int     `yaml:"lat_degrees,omitempty"`
+	LatDirection  *string  `yaml:"lat_direction,omitempty"`
+	LatMinutes    *int     `yaml:"lat_minutes,omitempty"`
+	LatSeconds    *float64 `yaml:"lat_seconds,omitempty"`
+	LongDegrees   *int     `yaml:"long_degrees,omitempty"`
+	LongDirection *string  `yaml:"long_direction,omitempty"`
+	LongMinutes   *int     `yaml:"long_minutes,omitempty"`
+	LongSeconds   *float64 `yaml:"long_seconds,omitempty"`
+	PrecisionHorz *int     `yaml:"precision_horz,omitempty"`
+	PrecisionVert *int     `yaml:"precision_vert,omitempty"`
+	Size          *int     `yaml:",omitempty"`
 
 	// NAPTR
 	//Flags       string `yaml:",omitempty"`
@@ -296,6 +303,69 @@ func (r RecordValue) StringSRV() string {
 	} else {
 		return fmt.Sprintf("%d %d %d %s", *r.Priority, *r.Weight, *r.Port, *r.Target)
 	}
+
+}
+
+func (r RecordValue) StringCAA() string {
+
+	if r.Flags != nil && r.Tag != nil && r.Value != nil {
+		return fmt.Sprintf("%s %s %s", *r.Flags, *r.Tag, *r.Value)
+	} else {
+		return ""
+	}
+}
+
+func (r RecordValue) StringURLFWD() string {
+
+	if r.Code != nil && r.Masking != nil && r.Path != nil && r.Query != nil && r.Target != nil {
+		return fmt.Sprintf(
+			"%d %d %s %d %s",
+			*r.Code, *r.Masking, *r.Path, *r.Query, *r.Target,
+		)
+	} else {
+		return ""
+	}
+}
+func (r RecordValue) StringSSHFP() string {
+	if r.Algorithm != nil && r.FingerprintType != nil && r.Fingerprint != nil {
+		return fmt.Sprintf(
+			"%d %d %s",
+			*r.Algorithm, *r.FingerprintType, *r.Fingerprint,
+		)
+	} else {
+		return ""
+	}
+}
+
+func (r RecordValue) StringNAPTR() string {
+
+	if r.Order != nil && r.Preference != nil && r.Flags != nil && r.Service != nil && r.Regexp != nil && r.Replacement != nil {
+		return fmt.Sprintf(
+			"%d %d %q %q %q %s",
+			*r.Order, *r.Preference, *r.Flags, *r.Service, *r.Regexp, *r.Replacement,
+		)
+	} else {
+		return ""
+	}
+}
+
+func (r RecordValue) StringLOC() string {
+
+	return fmt.Sprintf(
+		"%d %d %0.2f %s %d %d %0.2f %s %0.2f %d %d %d",
+		*r.LatDegrees,
+		*r.LatMinutes,
+		*r.LatSeconds,
+		*r.LatDirection,
+		*r.LongDegrees,
+		*r.LongMinutes,
+		*r.LongSeconds,
+		*r.LongDirection,
+		*r.Altitude,
+		*r.Size,
+		*r.PrecisionHorz,
+		*r.PrecisionVert,
+	)
 
 }
 

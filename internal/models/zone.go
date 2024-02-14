@@ -124,7 +124,7 @@ func (z *Zone) DeleteSubdomain(subdomain string) (err error) {
 	}
 
 	if z.doc.Kind != yaml.DocumentNode {
-		err = fmt.Errorf("z.doc is not a document node")
+		err = fmt.Errorf("zone.doc is not a document node")
 		return
 	}
 
@@ -149,7 +149,7 @@ func (z *Zone) FindSubdomain(subdomain string) (record Subdomain, err error) {
 	}
 
 	if z.doc.Kind != yaml.DocumentNode {
-		err = fmt.Errorf("z.doc is not a document node")
+		err = fmt.Errorf("zone.doc is not a document node")
 		return
 	}
 
@@ -172,7 +172,7 @@ func (z *Zone) FindSubdomain(subdomain string) (record Subdomain, err error) {
 func (z *Zone) FindRecordByType(subdomain string, rtype string) (rrecord *yaml.Node, rcontent *yaml.Node, rparent *yaml.Node, err error) {
 
 	if z.doc.Kind != yaml.DocumentNode {
-		err = fmt.Errorf("z.doc is not a document node")
+		err = fmt.Errorf("zone.doc is not a document node")
 		return
 	}
 

@@ -98,7 +98,7 @@ func (r *RecordResource) Schema(ctx context.Context, req resource.SchemaRequest,
 			},
 			"scope": schema.StringAttribute{
 				MarkdownDescription: "Scope of zone",
-				Required:            true,
+				Optional:            true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
