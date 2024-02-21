@@ -199,7 +199,7 @@ func (r *RecordResource) fillRecordFromData(data *RecordModel, record *models.Re
 
 	record.ClearValues()
 	for _, v := range data.Values {
-		record.AddValueFromString(v.ValueString())
+		_ = record.AddValueFromString(v.ValueString())
 	}
 
 	if data.Octodns.HasConfig() {

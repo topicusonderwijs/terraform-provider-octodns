@@ -27,6 +27,10 @@ var (
 	fqdnNoDot    = "unit.tests"
 	fqdn         = fqdnNoDot + "."
 	TypesChecked = map[string]*TestCheck{}
+	ipv4         = "192.168.0.1"
+	ipv6         = "2601:644:500:e210:62f8:1dff:feb8:947a"
+	ipv6local    = "::1"
+	randomTxt    = "Bah bah black sheep"
 )
 
 func TestMain(m *testing.M) {
@@ -75,11 +79,30 @@ func getType(name string, rtype RType) (record *Record, err error) {
 
 }
 
+func createEmptyType(name string, rtype RType) (record *Record) {
+
+	record = &Record{
+		BaseRecord: BaseRecord{
+			IsDeleted: false,
+			Name:      name,
+			Type:      rtype.String(),
+			TTL:       300,
+			Terraform: Terraform{},
+			Octodns:   OctodnsRecordConfig{},
+		},
+		Values: []RecordValue{},
+	}
+
+	return record
+
+}
+
 func checkAmountOfValues(t *testing.T, rt *Record, num int) {
 
 	if len(rt.Values) != num {
-		t.Fatalf(
-			`%s record has %d values,want %d`,
+		t.Errorf(
+			`%s: %s record has %d values,want %d`,
+			t.Name(),
 			rt.Type,
 			len(rt.Values),
 			num,
@@ -91,7 +114,7 @@ func validateStringValues(t *testing.T, rt *Record, wantStrValues []string) {
 
 	strValues := rt.ValuesAsString()
 	if strings.Join(strValues, "-") != strings.Join(wantStrValues, "-") {
-		t.Fatalf(
+		t.Errorf(
 			`%s ValuesAsString() results in %q, want %q`,
 			rt.Type, strValues, wantStrValues,
 		)
@@ -112,201 +135,58 @@ func validateReadSimpleValues(t *testing.T, name string, rType RType, wantValues
 	validateStringValues(t, rt, wantValues)
 }
 
-/****  Simple Record Types: ****/
+func validateWriteStringValues(t *testing.T, name string, rType RType, wantValues []string) (rt *Record, err error) {
 
-// TestARecord get an A record from unit.tests, checking
-// for a valid return value.
-func TestARecord(t *testing.T) {
-	validateReadSimpleValues(t, "www", TYPE_A, []string{"2.2.3.6"})
+	rt = createEmptyType(name, rType)
+
+	check := TypesChecked[rType.String()]
+	check.Write()
+
+	for _, v := range wantValues {
+		err = rt.AddValueFromString(v)
+		if err != nil {
+			return
+		}
+	}
+	checkAmountOfValues(t, rt, len(wantValues))
+	validateStringValues(t, rt, wantValues)
+	return
 }
 
-// TestAAAARecord get an AAAA record from unit.tests, checking
-// for a valid return value.
-func TestAAAARecord(t *testing.T) {
-	validateReadSimpleValues(t, "aaaa", TYPE_AAAA, []string{"2601:644:500:e210:62f8:1dff:feb8:947a"})
+func validateWriteWrongStringValues(t *testing.T, name string, rType RType, wrongValues []string) (rt *Record, errValues []string) {
+	var err error
+	for _, v := range wrongValues {
+		rt, err = validateWriteStringValues(t, name, rType, []string{v})
+		if err == nil {
+			errValues = append(errValues, v)
+			t.Errorf("Record %s type accepted wrong value: %q", rt.Type, v)
+		}
+	}
+	return
 }
 
-// TestCNAMERecord get an CNAME record from unit.tests, checking
-// for a valid return value.
-func TestCNAMERecord(t *testing.T) {
-	validateReadSimpleValues(t, "cname", TYPE_CNAME, []string{fqdn})
-}
+func validateWriteComplexValues(t *testing.T, name string, rType RType, wantsValues []baseRecordValue, wantStrValues []string) (rt *Record, err error) {
 
-// TestDNAMERecord get an CNAME record from unit.tests, checking
-// for a valid return value.
-func TestDNAMERecord(t *testing.T) {
-	validateReadSimpleValues(t, "dname", TYPE_DNAME, []string{fqdn})
-}
-
-// TestPTRRecord get an PTR record from unit.tests, checking
-// for a valid return value.
-func TestPTRRecord(t *testing.T) {
-	validateReadSimpleValues(t, "ptr", TYPE_PTR, []string{"foo.bar.com."})
-}
-
-// TestSPFRecord get an SPF record from unit.tests, checking
-// for a valid return value.
-func TestSPFRecord(t *testing.T) {
-	validateReadSimpleValues(t, "spf", TYPE_SPF, []string{"v=spf1 ip4:192.168.0.1/16-all"})
-}
-
-// TestNSRecord get an NS record from unit.tests, checking
-// for a valid return value.
-func TestNSRecord(t *testing.T) {
-	validateReadSimpleValues(t, "sub.txt", TYPE_NS, []string{"ns1.test.", "ns2.test."})
-}
-
-// TestTXTRecord get an TXT record from unit.tests, checking
-// for a valid return value.
-func TestTXTRecord(t *testing.T) {
-	validateReadSimpleValues(t, "txt", TYPE_TXT, []string{"Bah bah black sheep", "have you any wool.", `v=DKIM1\;k=rsa\;s=email\;h=sha256\;p=A/kinda+of/long/string+with+numb3rs`})
-
-}
-
-/**** Complex Record types ****/
-
-// TestMXRecord get an MX record from unit.tests, checking
-// for a valid return value.
-func TestMXRecord(t *testing.T) {
-
-	rt, err := getType("mx", TYPE_MX)
+	/** TEST **/
+	rt, err = validateWriteStringValues(t, name, rType, wantStrValues)
 	if err != nil {
-		t.Fatal(err.Error())
+		t.Errorf("Error: %s", err.Error())
 	}
+	if !t.Failed() {
+		checkAmountOfValues(t, rt, len(wantsValues))
 
-	check := TypesChecked[TYPE_MX.String()]
-	check.Read()
-
-	wants := []struct {
-		E string
-		P int
-		L bool
-	}{
-		{E: "smtp-1." + fqdn, P: 40, L: false},
-		{E: "smtp-2." + fqdn, P: 20, L: false},
-		{E: "smtp-3." + fqdn, P: 30, L: false},
-		{E: "smtp-4." + fqdn, P: 10, L: true},
-	}
-
-	checkAmountOfValues(t, rt, len(wants))
-
-	wantStrValues := []string{}
-	for i, w := range wants {
-
-		wantStrValues = append(wantStrValues, fmt.Sprintf("%d %s", w.P, w.E))
-
-		v := rt.Values[i]
-		if w.L {
-
-			if *v.Value != w.E || *v.Priority != w.P {
-				t.Fatalf(
-					`%s value %d has Value = %q, Priority = %q, want %q / %q`,
-					rt.Type, i,
-					*v.Value, *v.Priority,
-					w.E, w.P,
-				)
-			}
-		} else {
-			if *v.Exchange != w.E || *v.Preference != w.P {
-				t.Fatalf(
-					`%s value %d Exchange = %q, Preference = %q, want %q / %q`,
-					rt.Type, i,
-					*v.Exchange, *v.Preference,
-					w.E, w.P,
-				)
+		for i, w := range wantsValues {
+			v := rt.Values[i]
+			var r DiffReporter
+			cmp.Equal(v.baseRecordValue, w, cmp.Reporter(&r))
+			if len(r.diffs) > 0 {
+				t.Errorf("%s value %d mismatch (-want +got):\n%s", rt.Type, i, r.String())
 			}
 		}
+		validateStringValues(t, rt, wantStrValues)
 	}
 
-	validateStringValues(t, rt, wantStrValues)
-
-}
-
-// TestCAARecord get an CAA record from unit.tests, checking
-// for a valid return value.
-func TestCAARecord(t *testing.T) {
-
-	rt, err := getType("", TYPE_CAA)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-
-	check := TypesChecked[TYPE_CAA.String()]
-	check.Read()
-
-	wants := []struct {
-		F string
-		T string
-		V string
-	}{
-		{F: "0", T: "issue", V: "ca." + fqdnNoDot},
-	}
-
-	checkAmountOfValues(t, rt, len(wants))
-
-	wantStrValues := []string{}
-	for i, w := range wants {
-
-		v := rt.Values[i]
-
-		wantStrValues = append(wantStrValues, fmt.Sprintf("%s %s %s", w.F, w.T, w.V))
-
-		if *v.Flags != w.F || *v.Tag != w.T || *v.Value != w.V {
-			t.Fatalf(
-				`%s value %d has Flags = %q, Tag = %q, Value = %q, want %q / %q / %q`,
-				rt.Type, i,
-				*v.Flags, *v.Tag, *v.Value,
-				w.F, w.T, w.V,
-			)
-		}
-
-	}
-
-	validateStringValues(t, rt, wantStrValues)
-
-}
-
-// TestSRVRecord get an SRV record from unit.tests, checking
-// for a valid return value.
-func TestSRVRecord(t *testing.T) {
-	rt, err := getType("_imap._tcp", TYPE_SRV)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-
-	check := TypesChecked[TYPE_SRV.String()]
-	check.Read()
-
-	wants := []struct {
-		Po int
-		Pr int
-		T  string
-		W  int
-	}{
-		{Po: 0, Pr: 0, T: ".", W: 0},
-	}
-
-	checkAmountOfValues(t, rt, len(wants))
-
-	wantStrValues := []string{}
-	for i, w := range wants {
-
-		v := rt.Values[i]
-
-		wantStrValues = append(wantStrValues, fmt.Sprintf("%d %d %d %s", w.Po, w.Pr, w.W, w.T))
-
-		if *v.Port != w.Po || *v.Priority != w.Pr || *v.Target != w.T || *v.Weight != w.W {
-			t.Fatalf(
-				`%s value %d has Port = %q, Priority = %q, Target = %q, Weight = %q, want %q / %q / %q / %q`,
-				rt.Type, i,
-				*v.Port, *v.Priority, *v.Target, *v.Weight,
-				w.Po, w.Pr, w.T, w.W,
-			)
-		}
-
-	}
-
-	validateStringValues(t, rt, wantStrValues)
+	return
 
 }
 
@@ -346,9 +226,423 @@ func (r *DiffReporter) String() string {
 	return strings.Join(r.diffs, "\n")
 }
 
-// TestNAPTRRecord get an NAPTR record from unit.tests, checking
+/****  Simple Record Types: ****/
+
+// TestReadARecord get an A record from unit.tests, checking
 // for a valid return value.
-func TestNAPTRRecord(t *testing.T) {
+func TestReadARecord(t *testing.T) {
+	validateReadSimpleValues(t, "www", TYPE_A, []string{"2.2.3.6"})
+}
+
+// TestWriteARecord Create an A record, checking
+// for a valid return value.
+func TestWriteARecord(t *testing.T) {
+	var err error
+	_, err = validateWriteStringValues(t, "www", TYPE_A, []string{"2.2.3.6", "4.4.4.4"})
+	if err != nil {
+		t.Errorf("Error: %s", err.Error())
+	}
+
+	wrongValues := []string{fqdn, fqdnNoDot, ipv6, ipv6local}
+	rt, acceptedValues := validateWriteWrongStringValues(t, "www", TYPE_A, wrongValues)
+	_ = rt.Name
+	_ = len(acceptedValues)
+
+}
+
+// TestReadAAAARecord get an AAAA record from unit.tests, checking
+// for a valid return value.
+func TestReadAAAARecord(t *testing.T) {
+	validateReadSimpleValues(t, "aaaa", TYPE_AAAA, []string{ipv6})
+}
+
+// TestWriteAAAARecord Create an A record, checking
+// for a valid return value.
+func TestWriteAAAARecord(t *testing.T) {
+	//var rt *Record
+	var err error
+	_, err = validateWriteStringValues(t, TYPE_AAAA.LowerString(), TYPE_AAAA, []string{ipv6})
+	if err != nil {
+		t.Errorf("Error: %s", err.Error())
+	}
+
+	wrongValues := []string{fqdnNoDot, ipv4, randomTxt}
+	_, _ = validateWriteWrongStringValues(t, TYPE_AAAA.LowerString(), TYPE_AAAA, wrongValues)
+
+}
+
+// TestReadCNAMERecord get an CNAME record from unit.tests, checking
+// for a valid return value.
+func TestReadCNAMERecord(t *testing.T) {
+	validateReadSimpleValues(t, "cname", TYPE_CNAME, []string{fqdn})
+}
+
+// TestWriteCNAMERecord get an CNAME record from unit.tests, checking
+// for a valid return value.
+func TestWriteCNAMERecord(t *testing.T) {
+	var err error
+	_, err = validateWriteStringValues(t, TYPE_CNAME.LowerString(), TYPE_CNAME, []string{fqdn})
+	if err != nil {
+		t.Errorf("Error: %s", err.Error())
+	}
+
+	wrongValues := []string{fqdnNoDot, ipv4, ipv6}
+	_, _ = validateWriteWrongStringValues(t, TYPE_CNAME.LowerString(), TYPE_CNAME, wrongValues)
+}
+
+// TestReadDNAMERecord get an CNAME record from unit.tests, checking
+// for a valid return value.
+func TestReadDNAMERecord(t *testing.T) {
+	validateReadSimpleValues(t, "dname", TYPE_DNAME, []string{fqdn})
+}
+
+// TestWriteDNAMERecord get an DNAME record from unit.tests, checking
+// for a valid return value.
+func TestWriteDNAMERecord(t *testing.T) {
+	var err error
+	_, err = validateWriteStringValues(t, TYPE_DNAME.LowerString(), TYPE_DNAME, []string{fqdn})
+	if err != nil {
+		t.Errorf("Error: %s", err.Error())
+	}
+
+	wrongValues := []string{fqdnNoDot, ipv4, ipv6}
+	_, _ = validateWriteWrongStringValues(t, TYPE_DNAME.LowerString(), TYPE_DNAME, wrongValues)
+}
+
+// TestReadPTRRecord get an PTR record from unit.tests, checking
+// for a valid return value.
+func TestReadPTRRecord(t *testing.T) {
+	validateReadSimpleValues(t, "ptr", TYPE_PTR, []string{"foo.bar.com."})
+}
+
+// TestWritePTRRecord get an PTR record from unit.tests, checking
+// for a valid return value.
+func TestWritePTRRecord(t *testing.T) {
+	var err error
+	_, err = validateWriteStringValues(t, TYPE_PTR.LowerString(), TYPE_PTR, []string{fqdn})
+	if err != nil {
+		t.Errorf("Error: %s", err.Error())
+	}
+
+	wrongValues := []string{fqdnNoDot, ipv4, ipv6, ipv6local}
+	_, _ = validateWriteWrongStringValues(t, TYPE_PTR.LowerString(), TYPE_PTR, wrongValues)
+
+}
+
+// TestReadSPFRecord get an SPF record from unit.tests, checking
+// for a valid return value.
+func TestReadSPFRecord(t *testing.T) {
+	validateReadSimpleValues(t, "spf", TYPE_SPF, []string{"v=spf1 ip4:192.168.0.1/16-all"})
+}
+
+// TestWriteSPFRecord get an SPF record from unit.tests, checking
+// for a valid return value.
+func TestWriteSPFRecord(t *testing.T) {
+	var err error
+	_, err = validateWriteStringValues(t, TYPE_SPF.LowerString(), TYPE_SPF, []string{"v=spf1 ip4:192.168.0.1/16 -all"})
+	if err != nil {
+		t.Errorf("Error: %s", err.Error())
+	}
+
+	wrongValues := []string{fqdnNoDot, ipv4, ipv6, ipv6local, randomTxt}
+	_, _ = validateWriteWrongStringValues(t, TYPE_SPF.LowerString(), TYPE_SPF, wrongValues)
+}
+
+// TestReadNSRecord get an NS record from unit.tests, checking
+// for a valid return value.
+func TestReadNSRecord(t *testing.T) {
+	validateReadSimpleValues(t, "sub.txt", TYPE_NS, []string{"ns1.test.", "ns2.test."})
+}
+
+// TestWriteNSRecord get an NS record from unit.tests, checking
+// for a valid return value.
+func TestWriteNSRecord(t *testing.T) {
+	var err error
+	_, err = validateWriteStringValues(t, TYPE_NS.LowerString(), TYPE_NS, []string{"ns1.test.", "ns2.test.", ipv4, ipv6, ipv6local})
+	if err != nil {
+		t.Errorf("Error: %s", err.Error())
+	}
+
+	wrongValues := []string{fqdnNoDot, randomTxt}
+	_, _ = validateWriteWrongStringValues(t, TYPE_NS.LowerString(), TYPE_NS, wrongValues)
+
+}
+
+// TestReadTXTRecord get an TXT record from unit.tests, checking
+// for a valid return value.
+func TestReadTXTRecord(t *testing.T) {
+	validateReadSimpleValues(t, "txt", TYPE_TXT, []string{"Bah bah black sheep", "have you any wool.", `v=DKIM1\;k=rsa\;s=email\;h=sha256\;p=A/kinda+of/long/string+with+numb3rs`})
+
+}
+
+// TestWriteTXTRecord get an TXT record from unit.tests, checking
+// for a valid return value.
+func TestWriteTXTRecord(t *testing.T) {
+	var err error
+	_, err = validateWriteStringValues(t, TYPE_TXT.LowerString(), TYPE_TXT, []string{fqdnNoDot, ipv4, ipv6, ipv6local, randomTxt})
+	if err != nil {
+		t.Errorf("Error: %s", err.Error())
+	}
+
+	wrongValues := []string{"b;aat"}
+	_, _ = validateWriteWrongStringValues(t, TYPE_TXT.LowerString(), TYPE_TXT, wrongValues)
+
+}
+
+/**** Complex Record types ****/
+
+// TestReadMXRecord get an MX record from unit.tests, checking
+// for a valid return value.
+func TestReadMXRecord(t *testing.T) {
+
+	rt, err := getType("mx", TYPE_MX)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	check := TypesChecked[TYPE_MX.String()]
+	check.Read()
+
+	wants := []baseRecordValue{
+		{
+			Preference: refInt(40),
+			Exchange:   refString("smtp-1." + fqdn),
+		},
+		{
+			Preference: refInt(20),
+			Exchange:   refString("smtp-2." + fqdn),
+		},
+		{
+			Preference: refInt(30),
+			Exchange:   refString("smtp-3." + fqdn),
+		},
+		{
+			Priority: refInt(10),
+			Value:    refString("smtp-4." + fqdn),
+		},
+	}
+
+	checkAmountOfValues(t, rt, len(wants))
+
+	wantStrValues := []string{}
+	for i, w := range wants {
+
+		v := rt.Values[i]
+
+		if w.Preference != nil && w.Exchange != nil {
+			wantStrValues = append(
+				wantStrValues,
+				fmt.Sprintf("%d %s", *w.Preference, *w.Exchange),
+			)
+		} else {
+			wantStrValues = append(
+				wantStrValues,
+				fmt.Sprintf("%d %s", *w.Priority, *w.Value),
+			)
+		}
+		var r DiffReporter
+		cmp.Equal(v.baseRecordValue, w, cmp.Reporter(&r))
+		if len(r.diffs) > 0 {
+			t.Errorf("%s value %d mismatch (-want +got):\n%s", rt.Type, i, r.String())
+		}
+
+	}
+
+	validateStringValues(t, rt, wantStrValues)
+
+}
+
+// TestWriteMXRecord get an MX record from unit.tests, checking
+// for a valid return value.
+func TestWriteMXRecord(t *testing.T) {
+
+	wants := []baseRecordValue{
+		{
+			Preference: refInt(40),
+			Exchange:   refString("smtp1." + fqdn),
+		},
+		{
+			Preference: refInt(20),
+			Exchange:   refString("smtp-2." + fqdn),
+		},
+		{
+			Preference: refInt(30),
+			Exchange:   refString("smtp3." + fqdn),
+		},
+	}
+	wantStrValues := []string{}
+	for _, w := range wants {
+		if w.Preference != nil && w.Exchange != nil {
+			wantStrValues = append(
+				wantStrValues,
+				fmt.Sprintf("%d %s", *w.Preference, *w.Exchange),
+			)
+		} else {
+			wantStrValues = append(
+				wantStrValues,
+				fmt.Sprintf("%d %s", *w.Priority, *w.Value),
+			)
+		}
+	}
+
+	_, _ = validateWriteComplexValues(t, TYPE_MX.LowerString(), TYPE_MX, wants, wantStrValues)
+
+}
+
+// TestReadCAARecord get an CAA record from unit.tests, checking
+// for a valid return value.
+func TestReadCAARecord(t *testing.T) {
+
+	rt, err := getType("", TYPE_CAA)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	check := TypesChecked[TYPE_CAA.String()]
+	check.Read()
+
+	wants := []baseRecordValue{
+		{
+			Flags: refString("0"),
+			Tag:   refString("issue"),
+			Value: refString("ca." + fqdnNoDot),
+		},
+	}
+
+	checkAmountOfValues(t, rt, len(wants))
+
+	wantStrValues := []string{}
+	for i, w := range wants {
+
+		v := rt.Values[i]
+
+		wantStrValues = append(wantStrValues, fmt.Sprintf("%s %s %s", *w.Flags, *w.Tag, *w.Value))
+
+		var r DiffReporter
+		cmp.Equal(v.baseRecordValue, w, cmp.Reporter(&r))
+		if len(r.diffs) > 0 {
+			t.Errorf("%s value %d mismatch (-want +got):\n%s", rt.Type, i, r.String())
+		}
+
+	}
+
+	validateStringValues(t, rt, wantStrValues)
+
+}
+
+// TestWriteCAARecord get an CAA record from unit.tests, checking
+// for a valid return value.
+func TestWriteCAARecord(t *testing.T) {
+
+	wants := []baseRecordValue{
+		{
+			Flags: refString("0"),
+			Tag:   refString("issue"),
+			Value: refString("ca." + fqdnNoDot),
+		},
+		{
+			Flags: refString("0"),
+			Tag:   refString("issuewild"),
+			Value: refString("ca." + fqdnNoDot + "; policy=ev"),
+		},
+		{
+			Flags: refString("0"),
+			Tag:   refString("iodef"),
+			Value: refString("mailto:ca@" + fqdnNoDot),
+		},
+	}
+	wantStrValues := []string{}
+	for _, w := range wants {
+		wantStrValues = append(
+			wantStrValues,
+			fmt.Sprintf("%s %s %s", *w.Flags, *w.Tag, *w.Value),
+		)
+	}
+
+	_, _ = validateWriteComplexValues(t, TYPE_CAA.LowerString(), TYPE_CAA, wants, wantStrValues)
+
+}
+
+// TestReadSRVRecord get an SRV record from unit.tests, checking
+// for a valid return value.
+func TestReadSRVRecord(t *testing.T) {
+	rt, err := getType("_srv._tcp", TYPE_SRV)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	check := TypesChecked[TYPE_SRV.String()]
+	check.Read()
+
+	wants := []baseRecordValue{
+		{
+			Port:     refInt(30),
+			Priority: refInt(12),
+			Target:   refString("foo-2." + fqdn),
+			Weight:   refInt(20),
+		},
+		{
+			Port:     refInt(30),
+			Priority: refInt(10),
+			Target:   refString("foo-1." + fqdn),
+			Weight:   refInt(20),
+		},
+	}
+
+	checkAmountOfValues(t, rt, len(wants))
+
+	wantStrValues := []string{}
+	for i, w := range wants {
+
+		v := rt.Values[i]
+
+		wantStrValues = append(wantStrValues, fmt.Sprintf("%d %d %d %s", *w.Priority, *w.Weight, *w.Port, *w.Target))
+
+		var r DiffReporter
+		cmp.Equal(v.baseRecordValue, w, cmp.Reporter(&r))
+		if len(r.diffs) > 0 {
+			t.Errorf("%s value %d mismatch (-want +got):\n%s", rt.Type, i, r.String())
+		}
+
+	}
+
+	validateStringValues(t, rt, wantStrValues)
+
+}
+
+// TestWriteSRVRecord get an SRV record from unit.tests, checking
+// for a valid return value.
+func TestWriteSRVRecord(t *testing.T) {
+
+	wants := []baseRecordValue{
+		{
+			Port:     refInt(30),
+			Priority: refInt(12),
+			Target:   refString("foo-2." + fqdn),
+			Weight:   refInt(20),
+		},
+		{
+			Port:     refInt(30),
+			Priority: refInt(10),
+			Target:   refString("foo-1." + fqdn),
+			Weight:   refInt(20),
+		},
+	}
+	wantStrValues := []string{}
+	for _, w := range wants {
+		wantStrValues = append(
+			wantStrValues,
+			fmt.Sprintf("%d %d %d %s", *w.Priority, *w.Weight, *w.Port, *w.Target),
+		)
+	}
+
+	_, _ = validateWriteComplexValues(t, TYPE_SRV.LowerString(), TYPE_SRV, wants, wantStrValues)
+
+}
+
+// TestReadNAPTRRecord get an NAPTR record from unit.tests, checking
+// for a valid return value.
+func TestReadNAPTRRecord(t *testing.T) {
 
 	rt, err := getType("naptr", TYPE_NAPTR)
 	if err != nil {
@@ -400,9 +694,43 @@ func TestNAPTRRecord(t *testing.T) {
 
 }
 
-// TestSSHFPRecord get an SSHFP record from unit.tests, checking
+// TestWriteNAPTRRecord get an NAPTR record from unit.tests, checking
 // for a valid return value.
-func TestSSHFPRecord(t *testing.T) {
+func TestWriteNAPTRRecord(t *testing.T) {
+
+	wants := []baseRecordValue{
+		{
+			Order:       refInt(100),
+			Preference:  refInt(200),
+			Flags:       refString("U"),
+			Service:     refString("SIP+D2U"),
+			Regexp:      refString("!^.*$!sip:info@bar.example.com!"),
+			Replacement: refString("."),
+		},
+		{
+			Order:       refInt(10),
+			Preference:  refInt(100),
+			Flags:       refString("S"),
+			Service:     refString("SIP+D2U"),
+			Regexp:      refString("!^.*$!sip:info@foo.example.com!"),
+			Replacement: refString("."),
+		},
+	}
+	wantStrValues := []string{}
+	for _, w := range wants {
+		wantStrValues = append(
+			wantStrValues,
+			fmt.Sprintf("%d %d %q %q %q %s", *w.Order, *w.Preference, *w.Flags, *w.Service, *w.Regexp, *w.Replacement),
+		)
+	}
+
+	_, _ = validateWriteComplexValues(t, TYPE_NAPTR.LowerString(), TYPE_NAPTR, wants, wantStrValues)
+
+}
+
+// TestReadSSHFPRecord get an SSHFP record from unit.tests, checking
+// for a valid return value.
+func TestReadSSHFPRecord(t *testing.T) {
 
 	rt, err := getType("", TYPE_SSHFP)
 	if err != nil {
@@ -444,9 +772,38 @@ func TestSSHFPRecord(t *testing.T) {
 
 }
 
-// TestURLFWDRecord get an URLFWD record from unit.tests, checking
+// TestWriteSSHFPRecord get an SSHFP record from unit.tests, checking
 // for a valid return value.
-func TestURLFWDRecord(t *testing.T) {
+
+func TestWriteSSHFPRecord(t *testing.T) {
+
+	wants := []baseRecordValue{
+		{
+			Algorithm:       refInt(1), //(0: reserved; 1: RSA; 2: DSA; 3: ECDSA; 4: Ed25519; 6:Ed448)
+			Fingerprint:     refString("bf6b6825d2977c511a475bbefb88aad54a92ac73"),
+			FingerprintType: refInt(1), //(0: reserved; 1: SHA-1; 2: SHA-256)
+		},
+		{
+			Algorithm:       refInt(1),
+			Fingerprint:     refString("7491973e5f8b39d5327cd4e08bc81b05f7710b49"),
+			FingerprintType: refInt(1),
+		},
+	}
+	wantStrValues := []string{}
+	for _, w := range wants {
+		wantStrValues = append(
+			wantStrValues,
+			fmt.Sprintf("%d %d %s", *w.Algorithm, *w.FingerprintType, *w.Fingerprint),
+		)
+	}
+
+	_, _ = validateWriteComplexValues(t, TYPE_SSHFP.LowerString(), TYPE_SSHFP, wants, wantStrValues)
+
+}
+
+// TestReadURLFWDRecord get an URLFWD record from unit.tests, checking
+// for a valid return value.
+func TestReadURLFWDRecord(t *testing.T) {
 
 	rt, err := getType("urlfwd", TYPE_URLFWD)
 	if err != nil {
@@ -491,9 +848,41 @@ func TestURLFWDRecord(t *testing.T) {
 
 }
 
-// TestLOCRecord get an LOC record from unit.tests, checking
+// TestWriteURLFWDRecord get an URLFWD record from unit.tests, checking
 // for a valid return value.
-func TestLOCRecord(t *testing.T) {
+func TestWriteURLFWDRecord(t *testing.T) {
+
+	wants := []baseRecordValue{
+		{
+			Code:    refInt(302),
+			Masking: refInt(2),
+			Path:    refString("/"),
+			Query:   refInt(0),
+			Target:  refString("http://www.unit.tests"),
+		},
+		{
+			Code:    refInt(301),
+			Masking: refInt(2),
+			Path:    refString("/target"),
+			Query:   refInt(0),
+			Target:  refString("http://target.unit.tests"),
+		},
+	}
+	wantStrValues := []string{}
+	for _, w := range wants {
+		wantStrValues = append(
+			wantStrValues,
+			fmt.Sprintf("%d %d %s %d %s", *w.Code, *w.Masking, *w.Path, *w.Query, *w.Target),
+		)
+	}
+
+	_, _ = validateWriteComplexValues(t, TYPE_URLFWD.LowerString(), TYPE_URLFWD, wants, wantStrValues)
+
+}
+
+// TestReadLOCRecord get an LOC record from unit.tests, checking
+// for a valid return value.
+func TestReadLOCRecord(t *testing.T) {
 
 	rt, err := getType("loc", TYPE_LOC)
 	if err != nil {
@@ -569,9 +958,74 @@ func TestLOCRecord(t *testing.T) {
 
 }
 
+// TestWriteLOCRecord get an LOC record from unit.tests, checking
+// for a valid return value.
+func TestWriteLOCRecord(t *testing.T) {
+	wants := []baseRecordValue{
+		{
+			LatDegrees:   refInt(31),
+			LatDirection: refString("S"),
+			LatMinutes:   refInt(58),
+			LatSeconds:   refFloat64(52.1),
+
+			LongDegrees:   refInt(115),
+			LongDirection: refString("E"),
+			LongMinutes:   refInt(49),
+			LongSeconds:   refFloat64(11.7),
+
+			Altitude: refFloat64(20),
+
+			Size:          refInt(10),
+			PrecisionHorz: refInt(10),
+			PrecisionVert: refInt(2),
+		},
+		{
+			LatDegrees:   refInt(53),
+			LatDirection: refString("N"),
+			LatMinutes:   refInt(13),
+			LatSeconds:   refFloat64(10),
+
+			LongDegrees:   refInt(2),
+			LongDirection: refString("W"),
+			LongMinutes:   refInt(18),
+			LongSeconds:   refFloat64(26),
+
+			Altitude: refFloat64(20),
+
+			Size:          refInt(10),
+			PrecisionHorz: refInt(1000),
+			PrecisionVert: refInt(2),
+		},
+	}
+	wantStrValues := []string{}
+	for _, w := range wants {
+		wantStrValues = append(
+			wantStrValues,
+			fmt.Sprintf(
+				"%d %d %0.2f %s %d %d %0.2f %s %0.2f %d %d %d",
+				*w.LatDegrees,
+				*w.LatMinutes,
+				*w.LatSeconds,
+				*w.LatDirection,
+				*w.LongDegrees,
+				*w.LongMinutes,
+				*w.LongSeconds,
+				*w.LongDirection,
+				*w.Altitude,
+				*w.Size,
+				*w.PrecisionHorz,
+				*w.PrecisionVert,
+			),
+		)
+	}
+
+	_, _ = validateWriteComplexValues(t, TYPE_LOC.LowerString(), TYPE_LOC, wants, wantStrValues)
+
+}
+
 /**** Other Tests ****/
-// TestAllChecks check result of all tests
-func TestAllChecks(t *testing.T) {
+// TestReadAllChecks check result of all tests.
+func TestReadAllChecks(t *testing.T) {
 
 	for _, c := range TypesChecked {
 
