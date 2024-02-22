@@ -97,7 +97,7 @@ func (z *Zone) GetRecord(subdomain string, rtype string) (record *Record, err er
 			RecordChild:  recordChild,
 			RecordNode:   recordNode,
 			RecordParent: recordParent,
-			Name:         "",
+			Name:         subdomain,
 			Type:         "",
 			Values:       nil,
 			TTL:          0,
@@ -249,6 +249,7 @@ func (z Zone) WriteYamlToFile(filename string) error {
 	return nil
 }
 
+/*
 type OldZone struct {
 	Name string `yaml:"-"`
 
@@ -331,3 +332,4 @@ func decodeRecord(subdomain string, node yaml.Node) (Record, error) {
 	return record, err
 
 }
+*/

@@ -54,10 +54,10 @@ type Record struct {
 
 type recordYamlUnmarshal struct {
 	Name      string              `yaml:",omitempty"`
+	TTL       int                 `yaml:",omitempty"`
 	Type      string              `yaml:",omitempty"`
 	Value     yaml.Node           `yaml:",omitempty"`
 	Values    yaml.Node           `yaml:",omitempty"`
-	TTL       int                 `yaml:",omitempty"`
 	Terraform Terraform           `yaml:",omitempty"`
 	Octodns   OctodnsRecordConfig `yaml:",omitempty"`
 }
@@ -65,6 +65,9 @@ type recordYamlUnmarshal struct {
 func (r *Record) UpdateYaml() error {
 	if r.IsDeleted {
 		return nil
+	}
+	if r.RecordChild == nil {
+		return fmt.Errorf("RecordChild is nill")
 	}
 	return r.RecordChild.Encode(r)
 }
@@ -323,7 +326,7 @@ func (r RecordValue) MarshalYAML() (interface{}, error) {
 	}
 }
 
-func (r RecordValue) String() string {
+func (r *RecordValue) String() string {
 	if r.StringValue != nil {
 		return *r.StringValue
 	} else {
@@ -331,7 +334,7 @@ func (r RecordValue) String() string {
 	}
 }
 
-func (r RecordValue) StringMX() string {
+func (r *RecordValue) StringMX() string {
 
 	if r.Priority != nil && r.Value != nil {
 		return fmt.Sprintf("%d %s", *r.Priority, *r.Value)
@@ -342,7 +345,7 @@ func (r RecordValue) StringMX() string {
 	return ""
 }
 
-func (r RecordValue) StringSRV() string {
+func (r *RecordValue) StringSRV() string {
 
 	if r.Priority == nil || r.Weight == nil || r.Port == nil || r.Target == nil {
 		return ""
@@ -352,7 +355,7 @@ func (r RecordValue) StringSRV() string {
 
 }
 
-func (r RecordValue) StringCAA() string {
+func (r *RecordValue) StringCAA() string {
 
 	if r.Flags != nil && r.Tag != nil && r.Value != nil {
 		return fmt.Sprintf("%s %s %s", *r.Flags, *r.Tag, *r.Value)
@@ -361,7 +364,7 @@ func (r RecordValue) StringCAA() string {
 	}
 }
 
-func (r RecordValue) StringURLFWD() string {
+func (r *RecordValue) StringURLFWD() string {
 
 	if r.Code != nil && r.Masking != nil && r.Path != nil && r.Query != nil && r.Target != nil {
 		return fmt.Sprintf(
@@ -372,7 +375,7 @@ func (r RecordValue) StringURLFWD() string {
 		return ""
 	}
 }
-func (r RecordValue) StringSSHFP() string {
+func (r *RecordValue) StringSSHFP() string {
 	if r.Algorithm != nil && r.FingerprintType != nil && r.Fingerprint != nil {
 		return fmt.Sprintf(
 			"%d %d %s",
@@ -383,7 +386,7 @@ func (r RecordValue) StringSSHFP() string {
 	}
 }
 
-func (r RecordValue) StringNAPTR() string {
+func (r *RecordValue) StringNAPTR() string {
 
 	if r.Order != nil && r.Preference != nil && r.Flags != nil && r.Service != nil && r.Regexp != nil && r.Replacement != nil {
 		return fmt.Sprintf(
@@ -395,7 +398,7 @@ func (r RecordValue) StringNAPTR() string {
 	}
 }
 
-func (r RecordValue) StringLOC() string {
+func (r *RecordValue) StringLOC() string {
 
 	if r.LatDegrees == nil || r.LongDegrees == nil || r.LatDirection == nil || r.LongDirection == nil || r.Altitude == nil {
 		return ""
@@ -539,7 +542,7 @@ func (r *RecordValue) UnmarshalStringFQDN(value string) error {
 
 func (r *RecordValue) UnmarshalStringMX(value string) error {
 
-	parts, err := regexToMap(value, `^(?P<preference>\d+) (?P<exchange>.+)$`)
+	parts, err := regexToMap(value, `^(?P<preference>\d+) (?P<exchange>.[^ ]+)$`)
 	if err != nil {
 		return err
 	}
@@ -709,15 +712,15 @@ func (r *RecordValue) UnmarshalStringLOC(value string) error {
 	//@todo: Validate values
 	r.LatDegrees = RefStringAsInt(parts["latdeg"])
 	r.LatMinutes = RefStringAsInt(parts["latm"])
-	r.LatSeconds = RefStringAsFloat(parts["lats"])
+	r.LatSeconds = RefStringAsFloat64(parts["lats"])
 	r.LatDirection = RefString(parts["latdir"])
 
 	r.LongDegrees = RefStringAsInt(parts["longdeg"])
 	r.LongMinutes = RefStringAsInt(parts["longm"])
-	r.LongSeconds = RefStringAsFloat(parts["longs"])
+	r.LongSeconds = RefStringAsFloat64(parts["longs"])
 	r.LongDirection = RefString(parts["longdir"])
 
-	r.Altitude = RefStringAsFloat(parts["alt"])
+	r.Altitude = RefStringAsFloat64(parts["alt"])
 	r.Size = RefStringAsInt(parts["size"])
 	r.PrecisionHorz = RefStringAsInt(parts["prh"])
 	r.PrecisionVert = RefStringAsInt(parts["prv"])

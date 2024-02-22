@@ -473,7 +473,10 @@ func (r *RecordResource) Delete(ctx context.Context, req resource.DeleteRequest,
 		return
 	}
 
-	subdomain.FindAllType()
+	err = subdomain.FindAllType()
+	if err != nil {
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Could refresh all types of subdmain: %s", err.Error()))
+	}
 
 	if len(subdomain.Types) == 0 {
 		resp.Diagnostics.AddWarning("Client Warning", fmt.Sprintf("Trying to delete subdomain: %s / %s", subdomain.Name, data.Name))

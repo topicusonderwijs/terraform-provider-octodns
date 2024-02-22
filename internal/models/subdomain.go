@@ -26,14 +26,17 @@ func (r *Subdomain) SetYaml(key, content *yaml.Node) {
 
 }
 
-func (r *Subdomain) FindAllType() {
+func (r *Subdomain) FindAllType() error {
 
 	for _, v := range TYPES {
 		if v.IsEnabled() {
-			_, _ = r.GetType(v.String())
+			_, err := r.GetType(v.String())
+			if err != nil && !errors.Is(err, TypeNotFoundError) {
+				return err
+			}
 		}
 	}
-
+	return nil
 }
 
 func (r *Subdomain) UpdateYaml() (err error) {
@@ -121,7 +124,7 @@ func (r *Subdomain) GetType(rtype string) (record *Record, err error) {
 		return nil, err
 	}
 
-	if _, ok := r.Types[rtypeValidated]; ok {
+	if t, ok := r.Types[rtypeValidated]; ok && !t.IsDeleted {
 		return r.Types[rtypeValidated], nil
 	} else {
 		yamlNode := r.findType(rtypeValidated)

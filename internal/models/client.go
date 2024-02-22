@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/google/go-github/v55/github"
 	"golang.org/x/oauth2"
-	"strings"
 	"sync"
 )
 
@@ -89,15 +88,12 @@ func (g *GitHubClient) SetScope(name, path, branch, ext string) error {
 		ext = DEFAULT_EXTENSION
 	}
 
-	// Trim off "/" characters from the front and end
-	path = strings.Trim(path, "/")
-
-	g.Scopes[name] = Scope{
-		Name:   name,
-		Path:   path,
-		Branch: branch,
-		Ext:    ext,
-	}
+	g.Scopes[name] = NewScope(
+		name,
+		path,
+		branch,
+		ext,
+	)
 
 	return nil
 }

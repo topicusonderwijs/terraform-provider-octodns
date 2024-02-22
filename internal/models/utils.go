@@ -31,7 +31,7 @@ func RefStringAsInt(value string) *int {
 	return &vv
 }
 
-func RefStringAsFloat(value string) *float64 {
+func RefStringAsFloat64(value string) *float64 {
 
 	if value == "" {
 		return nil

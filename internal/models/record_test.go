@@ -34,12 +34,10 @@ var (
 )
 
 func TestMain(m *testing.M) {
-
-	zone = Zone{}
-	err := zone.ReadYamlFile("../../testdata/unit.tests.yaml")
-
+	var err error
+	zone, err = zoneFromYaml("unit.tests.yaml")
 	if err != nil {
-		fmt.Printf("Error while unmarshalling a zone: %s\n", err.Error())
+		fmt.Println(err.Error())
 		os.Exit(1)
 	}
 
@@ -230,13 +228,13 @@ func (r *DiffReporter) String() string {
 
 // TestReadARecord get an A record from unit.tests, checking
 // for a valid return value.
-func TestReadARecord(t *testing.T) {
+func TestRecord_Read_A(t *testing.T) {
 	validateReadSimpleValues(t, "www", TYPE_A, []string{"2.2.3.6"})
 }
 
-// TestWriteARecord Create an A record, checking
+// TestRecord_Write_A Create an A record, checking
 // for a valid return value.
-func TestWriteARecord(t *testing.T) {
+func TestRecord_Write_A(t *testing.T) {
 	var err error
 	_, err = validateWriteStringValues(t, "www", TYPE_A, []string{"2.2.3.6", "4.4.4.4"})
 	if err != nil {
@@ -250,15 +248,15 @@ func TestWriteARecord(t *testing.T) {
 
 }
 
-// TestReadAAAARecord get an AAAA record from unit.tests, checking
+// TestRecord_Read_AAAA get an AAAA record from unit.tests, checking
 // for a valid return value.
-func TestReadAAAARecord(t *testing.T) {
+func TestRecord_Read_AAAA(t *testing.T) {
 	validateReadSimpleValues(t, "aaaa", TYPE_AAAA, []string{ipv6})
 }
 
-// TestWriteAAAARecord Create an A record, checking
+// TestRecord_Write_AAAA Create an A record, checking
 // for a valid return value.
-func TestWriteAAAARecord(t *testing.T) {
+func TestRecord_Write_AAAA(t *testing.T) {
 	//var rt *Record
 	var err error
 	_, err = validateWriteStringValues(t, TYPE_AAAA.LowerString(), TYPE_AAAA, []string{ipv6})
@@ -271,15 +269,15 @@ func TestWriteAAAARecord(t *testing.T) {
 
 }
 
-// TestReadCNAMERecord get an CNAME record from unit.tests, checking
+// TestRecord_Read_CNAME get an CNAME record from unit.tests, checking
 // for a valid return value.
-func TestReadCNAMERecord(t *testing.T) {
+func TestRecord_Read_CNAME(t *testing.T) {
 	validateReadSimpleValues(t, "cname", TYPE_CNAME, []string{fqdn})
 }
 
-// TestWriteCNAMERecord get an CNAME record from unit.tests, checking
+// TestRecord_Write_CNAME get an CNAME record from unit.tests, checking
 // for a valid return value.
-func TestWriteCNAMERecord(t *testing.T) {
+func TestRecord_Write_CNAME(t *testing.T) {
 	var err error
 	_, err = validateWriteStringValues(t, TYPE_CNAME.LowerString(), TYPE_CNAME, []string{fqdn})
 	if err != nil {
@@ -290,15 +288,15 @@ func TestWriteCNAMERecord(t *testing.T) {
 	_, _ = validateWriteWrongStringValues(t, TYPE_CNAME.LowerString(), TYPE_CNAME, wrongValues)
 }
 
-// TestReadDNAMERecord get an CNAME record from unit.tests, checking
+// TestRecord_Read_DNAME get an CNAME record from unit.tests, checking
 // for a valid return value.
-func TestReadDNAMERecord(t *testing.T) {
+func TestRecord_Read_DNAME(t *testing.T) {
 	validateReadSimpleValues(t, "dname", TYPE_DNAME, []string{fqdn})
 }
 
-// TestWriteDNAMERecord get an DNAME record from unit.tests, checking
+// TestRecord_Write_DNAME get an DNAME record from unit.tests, checking
 // for a valid return value.
-func TestWriteDNAMERecord(t *testing.T) {
+func TestRecord_Write_DNAME(t *testing.T) {
 	var err error
 	_, err = validateWriteStringValues(t, TYPE_DNAME.LowerString(), TYPE_DNAME, []string{fqdn})
 	if err != nil {
@@ -309,15 +307,15 @@ func TestWriteDNAMERecord(t *testing.T) {
 	_, _ = validateWriteWrongStringValues(t, TYPE_DNAME.LowerString(), TYPE_DNAME, wrongValues)
 }
 
-// TestReadPTRRecord get an PTR record from unit.tests, checking
+// TestRecord_Read_PTR get an PTR record from unit.tests, checking
 // for a valid return value.
-func TestReadPTRRecord(t *testing.T) {
+func TestRecord_Read_PTR(t *testing.T) {
 	validateReadSimpleValues(t, "ptr", TYPE_PTR, []string{"foo.bar.com."})
 }
 
-// TestWritePTRRecord get an PTR record from unit.tests, checking
+// TestRecord_Write_PTR get an PTR record from unit.tests, checking
 // for a valid return value.
-func TestWritePTRRecord(t *testing.T) {
+func TestRecord_Write_PTR(t *testing.T) {
 	var err error
 	_, err = validateWriteStringValues(t, TYPE_PTR.LowerString(), TYPE_PTR, []string{fqdn})
 	if err != nil {
@@ -329,15 +327,15 @@ func TestWritePTRRecord(t *testing.T) {
 
 }
 
-// TestReadSPFRecord get an SPF record from unit.tests, checking
+// TestRecord_Read_SPF get an SPF record from unit.tests, checking
 // for a valid return value.
-func TestReadSPFRecord(t *testing.T) {
+func TestRecord_Read_SPF(t *testing.T) {
 	validateReadSimpleValues(t, "spf", TYPE_SPF, []string{"v=spf1 ip4:192.168.0.1/16-all"})
 }
 
-// TestWriteSPFRecord get an SPF record from unit.tests, checking
+// TestRecord_Write_SPF get an SPF record from unit.tests, checking
 // for a valid return value.
-func TestWriteSPFRecord(t *testing.T) {
+func TestRecord_Write_SPF(t *testing.T) {
 	var err error
 	_, err = validateWriteStringValues(t, TYPE_SPF.LowerString(), TYPE_SPF, []string{"v=spf1 ip4:192.168.0.1/16 -all"})
 	if err != nil {
@@ -348,15 +346,15 @@ func TestWriteSPFRecord(t *testing.T) {
 	_, _ = validateWriteWrongStringValues(t, TYPE_SPF.LowerString(), TYPE_SPF, wrongValues)
 }
 
-// TestReadNSRecord get an NS record from unit.tests, checking
+// TestRecord_Read_NS get an NS record from unit.tests, checking
 // for a valid return value.
-func TestReadNSRecord(t *testing.T) {
+func TestRecord_Read_NS(t *testing.T) {
 	validateReadSimpleValues(t, "sub.txt", TYPE_NS, []string{"ns1.test.", "ns2.test."})
 }
 
-// TestWriteNSRecord get an NS record from unit.tests, checking
+// TestRecord_Write_NS get an NS record from unit.tests, checking
 // for a valid return value.
-func TestWriteNSRecord(t *testing.T) {
+func TestRecord_Write_NS(t *testing.T) {
 	var err error
 	_, err = validateWriteStringValues(t, TYPE_NS.LowerString(), TYPE_NS, []string{"ns1.test.", "ns2.test.", ipv4, ipv6, ipv6local})
 	if err != nil {
@@ -368,16 +366,16 @@ func TestWriteNSRecord(t *testing.T) {
 
 }
 
-// TestReadTXTRecord get an TXT record from unit.tests, checking
+// TestRecord_Read_TXT get an TXT record from unit.tests, checking
 // for a valid return value.
-func TestReadTXTRecord(t *testing.T) {
+func TestRecord_Read_TXT(t *testing.T) {
 	validateReadSimpleValues(t, "txt", TYPE_TXT, []string{"Bah bah black sheep", "have you any wool.", `v=DKIM1\;k=rsa\;s=email\;h=sha256\;p=A/kinda+of/long/string+with+numb3rs`})
 
 }
 
-// TestWriteTXTRecord get an TXT record from unit.tests, checking
+// TestRecord_Write_TXT get an TXT record from unit.tests, checking
 // for a valid return value.
-func TestWriteTXTRecord(t *testing.T) {
+func TestRecord_Write_TXT(t *testing.T) {
 	var err error
 	_, err = validateWriteStringValues(t, TYPE_TXT.LowerString(), TYPE_TXT, []string{fqdnNoDot, ipv4, ipv6, ipv6local, randomTxt})
 	if err != nil {
@@ -391,9 +389,9 @@ func TestWriteTXTRecord(t *testing.T) {
 
 /**** Complex Record types ****/
 
-// TestReadMXRecord get an MX record from unit.tests, checking
+// TestRecord_Read_MX get an MX record from unit.tests, checking
 // for a valid return value.
-func TestReadMXRecord(t *testing.T) {
+func TestRecord_Read_MX(t *testing.T) {
 
 	rt, err := getType("mx", TYPE_MX)
 	if err != nil {
@@ -452,9 +450,9 @@ func TestReadMXRecord(t *testing.T) {
 
 }
 
-// TestWriteMXRecord get an MX record from unit.tests, checking
+// TestRecord_Write_MX get an MX record from unit.tests, checking
 // for a valid return value.
-func TestWriteMXRecord(t *testing.T) {
+func TestRecord_Write_MX(t *testing.T) {
 
 	wants := []baseRecordValue{
 		{
@@ -489,9 +487,9 @@ func TestWriteMXRecord(t *testing.T) {
 
 }
 
-// TestReadCAARecord get an CAA record from unit.tests, checking
+// TestRecord_Read_CAA get an CAA record from unit.tests, checking
 // for a valid return value.
-func TestReadCAARecord(t *testing.T) {
+func TestRecord_Read_CAA(t *testing.T) {
 
 	rt, err := getType("", TYPE_CAA)
 	if err != nil {
@@ -530,9 +528,9 @@ func TestReadCAARecord(t *testing.T) {
 
 }
 
-// TestWriteCAARecord get an CAA record from unit.tests, checking
+// TestRecord_Write_CAA get an CAA record from unit.tests, checking
 // for a valid return value.
-func TestWriteCAARecord(t *testing.T) {
+func TestRecord_Write_CAA(t *testing.T) {
 
 	wants := []baseRecordValue{
 		{
@@ -563,9 +561,9 @@ func TestWriteCAARecord(t *testing.T) {
 
 }
 
-// TestReadSRVRecord get an SRV record from unit.tests, checking
+// TestRecord_Read_SRV get an SRV record from unit.tests, checking
 // for a valid return value.
-func TestReadSRVRecord(t *testing.T) {
+func TestRecord_Read_SRV(t *testing.T) {
 	rt, err := getType("_srv._tcp", TYPE_SRV)
 	if err != nil {
 		t.Fatal(err.Error())
@@ -610,9 +608,9 @@ func TestReadSRVRecord(t *testing.T) {
 
 }
 
-// TestWriteSRVRecord get an SRV record from unit.tests, checking
+// TestRecord_Write_SRV get an SRV record from unit.tests, checking
 // for a valid return value.
-func TestWriteSRVRecord(t *testing.T) {
+func TestRecord_Write_SRV(t *testing.T) {
 
 	wants := []baseRecordValue{
 		{
@@ -640,9 +638,9 @@ func TestWriteSRVRecord(t *testing.T) {
 
 }
 
-// TestReadNAPTRRecord get an NAPTR record from unit.tests, checking
+// TestRecord_Read_NAPTR get an NAPTR record from unit.tests, checking
 // for a valid return value.
-func TestReadNAPTRRecord(t *testing.T) {
+func TestRecord_Read_NAPTR(t *testing.T) {
 
 	rt, err := getType("naptr", TYPE_NAPTR)
 	if err != nil {
@@ -694,9 +692,9 @@ func TestReadNAPTRRecord(t *testing.T) {
 
 }
 
-// TestWriteNAPTRRecord get an NAPTR record from unit.tests, checking
+// TestRecord_Write_NAPTR get an NAPTR record from unit.tests, checking
 // for a valid return value.
-func TestWriteNAPTRRecord(t *testing.T) {
+func TestRecord_Write_NAPTR(t *testing.T) {
 
 	wants := []baseRecordValue{
 		{
@@ -728,9 +726,9 @@ func TestWriteNAPTRRecord(t *testing.T) {
 
 }
 
-// TestReadSSHFPRecord get an SSHFP record from unit.tests, checking
+// TestRecord_Read_SSHFP get an SSHFP record from unit.tests, checking
 // for a valid return value.
-func TestReadSSHFPRecord(t *testing.T) {
+func TestRecord_Read_SSHFP(t *testing.T) {
 
 	rt, err := getType("", TYPE_SSHFP)
 	if err != nil {
@@ -772,10 +770,10 @@ func TestReadSSHFPRecord(t *testing.T) {
 
 }
 
-// TestWriteSSHFPRecord get an SSHFP record from unit.tests, checking
+// TestRecord_Write_SSHFP get an SSHFP record from unit.tests, checking
 // for a valid return value.
 
-func TestWriteSSHFPRecord(t *testing.T) {
+func TestRecord_Write_SSHFP(t *testing.T) {
 
 	wants := []baseRecordValue{
 		{
@@ -801,9 +799,9 @@ func TestWriteSSHFPRecord(t *testing.T) {
 
 }
 
-// TestReadURLFWDRecord get an URLFWD record from unit.tests, checking
+// TestRecord_Read_URLFWD get an URLFWD record from unit.tests, checking
 // for a valid return value.
-func TestReadURLFWDRecord(t *testing.T) {
+func TestRecord_Read_URLFWD(t *testing.T) {
 
 	rt, err := getType("urlfwd", TYPE_URLFWD)
 	if err != nil {
@@ -848,9 +846,9 @@ func TestReadURLFWDRecord(t *testing.T) {
 
 }
 
-// TestWriteURLFWDRecord get an URLFWD record from unit.tests, checking
+// TestRecord_Write_URLFWD get an URLFWD record from unit.tests, checking
 // for a valid return value.
-func TestWriteURLFWDRecord(t *testing.T) {
+func TestRecord_Write_URLFWD(t *testing.T) {
 
 	wants := []baseRecordValue{
 		{
@@ -880,9 +878,9 @@ func TestWriteURLFWDRecord(t *testing.T) {
 
 }
 
-// TestReadLOCRecord get an LOC record from unit.tests, checking
+// TestRecord_Read_LOC get an LOC record from unit.tests, checking
 // for a valid return value.
-func TestReadLOCRecord(t *testing.T) {
+func TestRecord_Read_LOC(t *testing.T) {
 
 	rt, err := getType("loc", TYPE_LOC)
 	if err != nil {
@@ -958,9 +956,9 @@ func TestReadLOCRecord(t *testing.T) {
 
 }
 
-// TestWriteLOCRecord get an LOC record from unit.tests, checking
+// TestRecord_Write_LOC get an LOC record from unit.tests, checking
 // for a valid return value.
-func TestWriteLOCRecord(t *testing.T) {
+func TestRecord_Write_LOC(t *testing.T) {
 	wants := []baseRecordValue{
 		{
 			LatDegrees:   refInt(31),
@@ -1025,7 +1023,7 @@ func TestWriteLOCRecord(t *testing.T) {
 
 /**** Other Tests ****/
 // TestReadAllChecks check result of all tests.
-func TestReadAllChecks(t *testing.T) {
+func TestRecord_CheckAllChecks(t *testing.T) {
 
 	for _, c := range TypesChecked {
 
