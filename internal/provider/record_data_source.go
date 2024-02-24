@@ -207,55 +207,7 @@ func (d *RecordDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 		return
 	}
 
-	if record.TTL > 0 {
-		data.TTL = types.Int64Value(int64(record.TTL))
-	} else {
-		data.TTL = types.Int64Null()
-	}
-
-	for _, v := range record.ValuesAsString() {
-		data.Values = append(data.Values, types.StringValue(v))
-	}
-
-	odns := OctodnsConfigModel{}
-
-	if record.Octodns.Cloudflare != nil {
-		odns.Cloudflare = &OctodnsCloudflareModel{}
-
-		if record.Octodns.Cloudflare.Proxied {
-			odns.Cloudflare.Proxied = types.BoolValue(true)
-		}
-		if record.Octodns.Cloudflare.AutoTTL {
-			odns.Cloudflare.AutoTTL = types.BoolValue(true)
-		}
-
-	}
-
-	if record.Octodns.AzureDNS != nil {
-		AzureDNS := &OctodnsAzureDNSModel{}
-		isSet := false
-
-		if record.Octodns.AzureDNS.Healthcheck.Interval > 0 {
-			odns.AzureDNS.HCInterval = types.Int64Value(int64(record.Octodns.AzureDNS.Healthcheck.Interval))
-			isSet = true
-		}
-		if record.Octodns.AzureDNS.Healthcheck.Timeout > 0 {
-			odns.AzureDNS.HCTimeout = types.Int64Value(int64(record.Octodns.AzureDNS.Healthcheck.Timeout))
-			isSet = true
-		}
-		if record.Octodns.AzureDNS.Healthcheck.NumFailures > 0 {
-			odns.AzureDNS.HCNumFailures = types.Int64Value(int64(record.Octodns.AzureDNS.Healthcheck.NumFailures))
-			isSet = true
-		}
-		if isSet {
-			odns.AzureDNS = AzureDNS
-		}
-
-	}
-
-	if odns.HasConfig() {
-		data.Octodns = &odns
-	}
+	resp.Diagnostics.Append(RecordToDataModel(ctx, &data, record)...)
 
 	// For the purposes of this example code, hardcoding a response value to
 	// save into the Terraform state.

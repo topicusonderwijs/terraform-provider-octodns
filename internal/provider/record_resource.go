@@ -192,40 +192,6 @@ func (r *RecordResource) Configure(ctx context.Context, req resource.ConfigureRe
 	r.client = client
 }
 
-func (r *RecordResource) fillRecordFromData(data *RecordModel, record *models.Record) {
-
-	record.Name = data.Name.ValueString()
-	record.TTL = int(data.TTL.ValueInt64())
-
-	record.ClearValues()
-	for _, v := range data.Values {
-		_ = record.AddValueFromString(v.ValueString())
-	}
-
-	if data.Octodns.HasConfig() {
-
-		if data.Octodns.Cloudflare != nil {
-			record.Octodns.Cloudflare = &models.OctodnsCloudflare{
-				Proxied: data.Octodns.Cloudflare.Proxied.ValueBool(),
-				AutoTTL: data.Octodns.Cloudflare.AutoTTL.ValueBool(),
-			}
-		}
-
-		if data.Octodns.AzureDNS != nil {
-			record.Octodns.AzureDNS = &models.OctodnsAzureDNS{
-				Healthcheck: models.OctodnsAzureDNSHealthcheck{
-					Interval:    int(data.Octodns.AzureDNS.HCInterval.ValueInt64()),
-					Timeout:     int(data.Octodns.AzureDNS.HCTimeout.ValueInt64()),
-					NumFailures: int(data.Octodns.AzureDNS.HCNumFailures.ValueInt64()),
-				},
-			}
-		} else {
-			record.Octodns.AzureDNS = &models.OctodnsAzureDNS{}
-		}
-
-	}
-}
-
 func (r *RecordResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	tflog.Trace(ctx, "- Resource Create")
 	var data *RecordModel
@@ -260,7 +226,10 @@ func (r *RecordResource) Create(ctx context.Context, req resource.CreateRequest,
 		return
 	}
 
-	r.fillRecordFromData(data, record)
+	resp.Diagnostics.Append(RecordFromDataModel(ctx, data, record)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
 	err = subdomain.UpdateYaml()
 	if err != nil {
@@ -326,51 +295,8 @@ func (r *RecordResource) Read(ctx context.Context, req resource.ReadRequest, res
 		return
 	}
 
-	data.TTL = types.Int64Value(int64(record.TTL))
-	data.Values = []types.String{}
-	for _, v := range record.ValuesAsString() {
-		data.Values = append(data.Values, types.StringValue(v))
-	}
+	resp.Diagnostics.Append(RecordToDataModel(ctx, data, record)...)
 
-	odns := OctodnsConfigModel{}
-
-	if record.Octodns.Cloudflare != nil {
-		odns.Cloudflare = &OctodnsCloudflareModel{}
-
-		if record.Octodns.Cloudflare.Proxied {
-			odns.Cloudflare.Proxied = types.BoolValue(true)
-		}
-		if record.Octodns.Cloudflare.AutoTTL {
-			odns.Cloudflare.AutoTTL = types.BoolValue(true)
-		}
-
-	}
-
-	if record.Octodns.AzureDNS != nil {
-		AzureDNS := &OctodnsAzureDNSModel{}
-		isSet := false
-
-		if record.Octodns.AzureDNS.Healthcheck.Interval > 0 {
-			AzureDNS.HCInterval = types.Int64Value(int64(record.Octodns.AzureDNS.Healthcheck.Interval))
-			isSet = true
-		}
-		if record.Octodns.AzureDNS.Healthcheck.Timeout > 0 {
-			AzureDNS.HCTimeout = types.Int64Value(int64(record.Octodns.AzureDNS.Healthcheck.Timeout))
-			isSet = true
-		}
-		if record.Octodns.AzureDNS.Healthcheck.NumFailures > 0 {
-			AzureDNS.HCNumFailures = types.Int64Value(int64(record.Octodns.AzureDNS.Healthcheck.NumFailures))
-			isSet = true
-		}
-		if isSet {
-			odns.AzureDNS = AzureDNS
-		}
-
-	}
-
-	if odns.HasConfig() {
-		data.Octodns = &odns
-	}
 	// UpdateYaml updated data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
@@ -413,7 +339,7 @@ func (r *RecordResource) Update(ctx context.Context, req resource.UpdateRequest,
 		return
 	}
 
-	r.fillRecordFromData(data, record)
+	resp.Diagnostics.Append(RecordFromDataModel(ctx, data, record)...)
 
 	err = subdomain.UpdateYaml()
 	if err != nil {
