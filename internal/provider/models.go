@@ -82,7 +82,7 @@ func (o OctodnsAzureDNSModel) Attributes() (attributes map[string]attr.Type) {
 func RecordToDataModel(ctx context.Context, data *RecordModel, record *models.Record) diag.Diagnostics {
 
 	retDiags := diag.Diagnostics{}
-	diags := diag.Diagnostics{}
+	var diags diag.Diagnostics
 
 	if record.TTL > 0 {
 		data.TTL = types.Int64Value(int64(record.TTL))
