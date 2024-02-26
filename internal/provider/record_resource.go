@@ -128,14 +128,14 @@ func (r *RecordResource) Schema(ctx context.Context, req resource.SchemaRequest,
 				MarkdownDescription: "TTL of the record, leave empty for zone of server defaults",
 			},
 			"octodns": schema.SingleNestedAttribute{
-				MarkdownDescription: "Additional octodns config for the records",
+				MarkdownDescription: "Additional provider specific record meta config.",
 				Optional:            true,
 				Computed:            true,
 				Attributes: map[string]schema.Attribute{
 					"cloudflare": schema.SingleNestedAttribute{
 						Attributes: map[string]schema.Attribute{
 							"proxied": schema.BoolAttribute{
-								MarkdownDescription: "Should cloudflare proxy this record (only for A/AAAA records)",
+								MarkdownDescription: "Should cloudflare proxy this record (only for A/AAAA/CNAME records)",
 								Optional:            true,
 							},
 							"auto_ttl": schema.BoolAttribute{
@@ -143,11 +143,12 @@ func (r *RecordResource) Schema(ctx context.Context, req resource.SchemaRequest,
 								Optional:            true,
 							},
 						},
-						Computed: true,
-						Optional: true,
+						Computed:            true,
+						Optional:            true,
+						MarkdownDescription: "Meta config for [cloudflare provider](https://github.com/octodns/octodns-cloudflare/?tab=readme-ov-file#configuration)",
 					},
 					"azuredns": schema.SingleNestedAttribute{
-						MarkdownDescription: "Azure healthcheck configuration",
+						MarkdownDescription: "Healthcheck configuration for [Azure provider](https://github.com/octodns/octodns-azure/?tab=readme-ov-file#healthchecks)",
 						Attributes: map[string]schema.Attribute{
 							"hc_interval": schema.Int64Attribute{
 								MarkdownDescription: "Azure healthcheck interval",

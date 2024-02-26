@@ -60,6 +60,8 @@ func (p *OctodnsProvider) Schema(ctx context.Context, req provider.SchemaRequest
 		MarkdownDescription: "**Warning**: This provider is still a work-in-progress so use at your own risk\n\n" +
 			"This provider allows you to modify your OctoDNS zone yaml files within a github repo,\n" +
 			"and can handle multiple zone directories within one git repo by defining multiple scopes\n\n" +
+			"For github authentication you can use a personal access token (PAT) or use the [Github Cli](https://cli.github.com) to provide a token.\n" +
+			"If you don't have `gh` in your $PATH, you can point to the executable using the GH_PATH environment variable.   \n*Example*: ```GH_PATH=/opt/homebrew/bin/gh terraform plan```\n\n" +
 			"note: This provider can only manage records within existing zone files, it **cannot** manage/create zone files or alter the OctoDNS config.\n\n" +
 			"Also this provider does not run OctoDNS after a modification, so you need your own automation for that like the OctoDNS github action",
 		Attributes: map[string]schema.Attribute{

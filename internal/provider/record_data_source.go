@@ -113,7 +113,7 @@ func (d *RecordDataSource) Schema(ctx context.Context, req datasource.SchemaRequ
 				Computed:            true,
 			},
 			"octodns": schema.SingleNestedAttribute{
-				MarkdownDescription: "Additional octodns config for the records",
+				MarkdownDescription: "Additional provider specific record meta config.",
 				Computed:            true,
 				Attributes: map[string]schema.Attribute{
 					"cloudflare": schema.SingleNestedAttribute{
@@ -127,10 +127,11 @@ func (d *RecordDataSource) Schema(ctx context.Context, req datasource.SchemaRequ
 								Computed:            true,
 							},
 						},
-						Computed: true,
+						Computed:            true,
+						MarkdownDescription: "Meta config for [cloudflare provider](https://github.com/octodns/octodns-cloudflare/?tab=readme-ov-file#configuration)",
 					},
 					"azuredns": schema.SingleNestedAttribute{
-						MarkdownDescription: "Azure healthcheck configuration",
+						MarkdownDescription: "Healthcheck configuration for [Azure provider](https://github.com/octodns/octodns-azure/?tab=readme-ov-file#healthchecks)",
 						Attributes: map[string]schema.Attribute{
 							"hc_interval": schema.Int64Attribute{
 								MarkdownDescription: "Azure healthcheck interval",

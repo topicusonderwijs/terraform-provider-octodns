@@ -31,7 +31,7 @@ resource "octodns_dname_record" "dname" {
 
 ### Optional
 
-- `octodns` (Attributes) Additional octodns config for the records (see [below for nested schema](#nestedatt--octodns))
+- `octodns` (Attributes) Additional provider specific record meta config. (see [below for nested schema](#nestedatt--octodns))
 - `scope` (String) Scope of zone
 - `ttl` (Number) TTL of the record, leave empty for zone of server defaults
 
@@ -44,8 +44,8 @@ resource "octodns_dname_record" "dname" {
 
 Optional:
 
-- `azuredns` (Attributes) Azure healthcheck configuration (see [below for nested schema](#nestedatt--octodns--azuredns))
-- `cloudflare` (Attributes) (see [below for nested schema](#nestedatt--octodns--cloudflare))
+- `azuredns` (Attributes) Healthcheck configuration for [Azure provider](https://github.com/octodns/octodns-azure/?tab=readme-ov-file#healthchecks) (see [below for nested schema](#nestedatt--octodns--azuredns))
+- `cloudflare` (Attributes) Meta config for [cloudflare provider](https://github.com/octodns/octodns-cloudflare/?tab=readme-ov-file#configuration) (see [below for nested schema](#nestedatt--octodns--cloudflare))
 
 <a id="nestedatt--octodns--azuredns"></a>
 ### Nested Schema for `octodns.azuredns`
@@ -63,4 +63,4 @@ Optional:
 Optional:
 
 - `auto_ttl` (Boolean) Use cloudflare's auto-ttl *feature*, aka: set to 300
-- `proxied` (Boolean) Should cloudflare proxy this record (only for A/AAAA records)
+- `proxied` (Boolean) Should cloudflare proxy this record (only for A/AAAA/CNAME records)

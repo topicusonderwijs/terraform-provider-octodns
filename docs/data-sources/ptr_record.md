@@ -27,7 +27,7 @@ PTR record data source
 ### Read-Only
 
 - `id` (String) Record identifier
-- `octodns` (Attributes) Additional octodns config for the records (see [below for nested schema](#nestedatt--octodns))
+- `octodns` (Attributes) Additional provider specific record meta config. (see [below for nested schema](#nestedatt--octodns))
 - `ttl` (Number) TTL of the record, if not set the zone's or dns server setting is used
 - `values` (List of String) Values of the record, should confirm to record type
 
@@ -36,8 +36,8 @@ PTR record data source
 
 Read-Only:
 
-- `azuredns` (Attributes) Azure healthcheck configuration (see [below for nested schema](#nestedatt--octodns--azuredns))
-- `cloudflare` (Attributes) (see [below for nested schema](#nestedatt--octodns--cloudflare))
+- `azuredns` (Attributes) Healthcheck configuration for [Azure provider](https://github.com/octodns/octodns-azure/?tab=readme-ov-file#healthchecks) (see [below for nested schema](#nestedatt--octodns--azuredns))
+- `cloudflare` (Attributes) Meta config for [cloudflare provider](https://github.com/octodns/octodns-cloudflare/?tab=readme-ov-file#configuration) (see [below for nested schema](#nestedatt--octodns--cloudflare))
 
 <a id="nestedatt--octodns--azuredns"></a>
 ### Nested Schema for `octodns.azuredns`

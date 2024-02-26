@@ -6,6 +6,8 @@ description: |-
   Warning: This provider is still a work-in-progress so use at your own risk
   This provider allows you to modify your OctoDNS zone yaml files within a github repo,
   and can handle multiple zone directories within one git repo by defining multiple scopes
+  For github authentication you can use a personal access token (PAT) or use the Github Cli https://cli.github.com to provide a token.
+  If you don't have gh in your $PATH, you can point to the executable using the GH_PATH environment variable.Example: GH_PATH=/opt/homebrew/bin/gh terraform plan
   note: This provider can only manage records within existing zone files, it cannot manage/create zone files or alter the OctoDNS config.
   Also this provider does not run OctoDNS after a modification, so you need your own automation for that like the OctoDNS github action
 ---
@@ -16,6 +18,10 @@ description: |-
 
 This provider allows you to modify your OctoDNS zone yaml files within a github repo,
 and can handle multiple zone directories within one git repo by defining multiple scopes
+
+For github authentication you can use a personal access token (PAT) or use the [Github Cli](https://cli.github.com) to provide a token.
+If you don't have `gh` in your $PATH, you can point to the executable using the GH_PATH environment variable.   
+*Example*: ```GH_PATH=/opt/homebrew/bin/gh terraform plan```
 
 note: This provider can only manage records within existing zone files, it **cannot** manage/create zone files or alter the OctoDNS config.
 
