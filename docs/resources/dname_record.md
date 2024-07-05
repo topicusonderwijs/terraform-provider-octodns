@@ -64,3 +64,11 @@ Optional:
 
 - `auto_ttl` (Boolean) Use cloudflare's auto-ttl *feature*, aka: set to 300
 - `proxied` (Boolean) Should cloudflare proxy this record (only for A/AAAA/CNAME records)
+
+## Import
+
+Import is supported using the following syntax:
+
+```shell
+terraform import octodns_dname_record.example "<scope> <zone> <name>"
+```
