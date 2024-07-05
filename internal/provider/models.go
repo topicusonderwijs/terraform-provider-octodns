@@ -156,7 +156,9 @@ func RecordFromDataModel(ctx context.Context, data *RecordModel, record *models.
 		_ = record.AddValueFromString(v.ValueString())
 	}
 
-	if !data.Octodns.IsUnknown() {
+	record.Octodns = models.OctodnsRecordConfig{}
+
+	if !data.Octodns.IsUnknown() && !data.Octodns.IsNull() {
 
 		var octodns OctodnsConfigModel
 		diags.Append(data.Octodns.As(ctx, &octodns, basetypes.ObjectAsOptions{})...)

@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -99,6 +100,8 @@ func (r *RecordResource) Schema(ctx context.Context, req resource.SchemaRequest,
 			"scope": schema.StringAttribute{
 				MarkdownDescription: "Scope of zone",
 				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString(models.DEFAULT_SCOPE),
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -130,9 +133,10 @@ func (r *RecordResource) Schema(ctx context.Context, req resource.SchemaRequest,
 			"octodns": schema.SingleNestedAttribute{
 				MarkdownDescription: "Additional provider specific record meta config.",
 				Optional:            true,
-				Computed:            true,
 				Attributes: map[string]schema.Attribute{
 					"cloudflare": schema.SingleNestedAttribute{
+						Optional:            true,
+						MarkdownDescription: "Meta config for [cloudflare provider](https://github.com/octodns/octodns-cloudflare/?tab=readme-ov-file#configuration)",
 						Attributes: map[string]schema.Attribute{
 							"proxied": schema.BoolAttribute{
 								MarkdownDescription: "Should cloudflare proxy this record (only for A/AAAA/CNAME records)",
@@ -143,10 +147,9 @@ func (r *RecordResource) Schema(ctx context.Context, req resource.SchemaRequest,
 								Optional:            true,
 							},
 						},
-						Optional:            true,
-						MarkdownDescription: "Meta config for [cloudflare provider](https://github.com/octodns/octodns-cloudflare/?tab=readme-ov-file#configuration)",
 					},
 					"azuredns": schema.SingleNestedAttribute{
+						Optional:            true,
 						MarkdownDescription: "Healthcheck configuration for [Azure provider](https://github.com/octodns/octodns-azure/?tab=readme-ov-file#healthchecks)",
 						Attributes: map[string]schema.Attribute{
 							"hc_interval": schema.Int64Attribute{
@@ -162,7 +165,6 @@ func (r *RecordResource) Schema(ctx context.Context, req resource.SchemaRequest,
 								Optional:            true,
 							},
 						},
-						Optional: true,
 					},
 				},
 			},
@@ -226,7 +228,9 @@ func (r *RecordResource) Create(ctx context.Context, req resource.CreateRequest,
 		return
 	}
 
+	//resp.Diagnostics.AddError("Blaat1", "blaat1")
 	resp.Diagnostics.Append(RecordFromDataModel(ctx, data, record)...)
+	//resp.Diagnostics.AddError("Blaat2", "blaat2")
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -432,5 +436,6 @@ func (r *RecordResource) Delete(ctx context.Context, req resource.DeleteRequest,
 }
 
 func (r *RecordResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
