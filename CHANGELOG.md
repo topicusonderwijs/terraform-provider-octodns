@@ -1,5 +1,7 @@
 ## UNRELEASED (TBA)
 
+## 0.1.2 (2024-07-08)
+
 FIXES:
 - apply results in `Provider returned invalid result object after apply` error
 
