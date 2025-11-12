@@ -216,9 +216,8 @@ func (r *RecordResource) Create(ctx context.Context, req resource.CreateRequest,
 	var err error
 
 	retryCounter := 0
-	retryLimit := 5
 
-	if retryCounter <= retryLimit {
+	if retryCounter <= r.client.RetryLimit {
 
 		zone, err = r.client.GetZone(data.Zone.ValueString(), data.Scope.ValueString())
 		if err != nil {
@@ -254,7 +253,7 @@ func (r *RecordResource) Create(ctx context.Context, req resource.CreateRequest,
 		err = r.client.SaveZone(zone, fmt.Sprintf("chore(%s): create %s record for %s", data.Zone.ValueString(), r.rtype.String(), data.Name.ValueString()))
 		if err != nil {
 			retryCounter++
-			if retryCounter <= retryLimit {
+			if retryCounter <= r.client.RetryLimit {
 				resp.Diagnostics.AddWarning("Client Warning", fmt.Sprintf("Failed to save zone, going to fully retry: %s", err.Error()))
 				time.Sleep(time.Duration(retryCounter*5) * time.Second)
 				err = nil
@@ -353,9 +352,8 @@ func (r *RecordResource) Update(ctx context.Context, req resource.UpdateRequest,
 	var err error
 
 	retryCounter := 0
-	retryLimit := 5
 
-	if retryCounter <= retryLimit {
+	if retryCounter <= r.client.RetryLimit {
 
 		zone, err = r.client.GetZone(state.Zone.ValueString(), state.Scope.ValueString())
 		if err != nil {
@@ -386,7 +384,7 @@ func (r *RecordResource) Update(ctx context.Context, req resource.UpdateRequest,
 		err = r.client.SaveZone(zone, fmt.Sprintf("chore(%s): update %s record for %s", data.Zone.ValueString(), r.rtype.String(), data.Name.ValueString()))
 		if err != nil {
 			retryCounter++
-			if retryCounter <= retryLimit {
+			if retryCounter <= r.client.RetryLimit {
 				resp.Diagnostics.AddWarning("Client Warning", fmt.Sprintf("Failed to save zone, going to fully retry: %s", err.Error()))
 				time.Sleep(time.Duration(retryCounter*5) * time.Second)
 				err = nil
@@ -432,9 +430,8 @@ func (r *RecordResource) Delete(ctx context.Context, req resource.DeleteRequest,
 	var err error
 
 	retryCounter := 0
-	retryLimit := 5
 
-	if retryCounter <= retryLimit {
+	if retryCounter <= r.client.RetryLimit {
 
 		zone, err = r.client.GetZone(data.Zone.ValueString(), data.Scope.ValueString())
 		if err != nil {
@@ -471,7 +468,7 @@ func (r *RecordResource) Delete(ctx context.Context, req resource.DeleteRequest,
 		err = r.client.SaveZone(zone, fmt.Sprintf("chore(%s): delete %s record for %s", data.Zone.ValueString(), r.rtype.String(), data.Name.ValueString()))
 		if err != nil {
 			retryCounter++
-			if retryCounter <= retryLimit {
+			if retryCounter <= r.client.RetryLimit {
 				resp.Diagnostics.AddWarning("Client Warning", fmt.Sprintf("Failed to save zone , going to fully retry: %s", err.Error()))
 				time.Sleep(time.Duration(retryCounter*5) * time.Second)
 				err = nil

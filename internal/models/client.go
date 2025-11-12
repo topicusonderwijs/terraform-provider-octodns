@@ -34,9 +34,10 @@ type GitHubClient struct {
 	Branch      string
 	AuthorName  string
 	AuthorEmail string
+	RetryLimit  int
 }
 
-func NewGitHubClient(accessToken, owner, repo string) (GitClient, error) {
+func NewGitHubClient(accessToken, owner, repo string, retryLimit int) (GitClient, error) {
 
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
@@ -53,6 +54,7 @@ func NewGitHubClient(accessToken, owner, repo string) (GitClient, error) {
 		Branch:      "main",
 		AuthorEmail: "",
 		AuthorName:  "",
+		RetryLimit:  retryLimit,
 	}, nil
 
 }
