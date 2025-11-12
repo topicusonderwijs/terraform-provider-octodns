@@ -249,6 +249,9 @@ func (g *GitHubClient) SaveZone(zone *Zone, comment string) error {
 
 	ctx := context.Background()
 	repositoryContentResponse, response, err := g.Client.Repositories.UpdateFile(ctx, g.Owner, g.Repo, filepath, commitOption)
+	if response.StatusCode == 409 {
+		return fmt.Errorf("409 error:`%v`", err)
+	}
 	if err != nil {
 		return err
 	}
