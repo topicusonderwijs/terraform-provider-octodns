@@ -9,7 +9,7 @@ func TestSubdomain_UpdateYaml(t *testing.T) {
 
 	xZone, err := zoneFromYaml(UNIT_FILE_DEFAULT)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Errorf("%s", err.Error())
 	}
 
 	sub, err := xZone.FindSubdomain("cname")
@@ -37,7 +37,7 @@ func TestSubdomain_DeleteType(t *testing.T) {
 
 	xZone, err := zoneFromYaml(UNIT_FILE_LOC_DELETED)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Errorf("%s", err.Error())
 	}
 
 	sub, err := xZone.FindSubdomain("")
@@ -99,7 +99,7 @@ func TestSubdomain_GetType(t *testing.T) {
 
 	xZone, err := zoneFromYaml(UNIT_FILE_LOC_DELETED)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Errorf("%s", err.Error())
 	}
 
 	sub, err := xZone.FindSubdomain("")
@@ -123,7 +123,7 @@ func TestSubdomain_CreateType(t *testing.T) {
 
 	xZone, err := zoneFromYaml(UNIT_FILE_LOC_DELETED)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Errorf("%s", err.Error())
 	}
 
 	sub, err := xZone.FindSubdomain("aaaa")

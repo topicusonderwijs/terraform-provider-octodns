@@ -53,7 +53,7 @@ func compareZoneOutputWithFile(t *testing.T, zone *Zone, filename string) {
 
 	fileContent, err := readYamlUnitFile(filename)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Errorf("%s", err.Error())
 	}
 
 	diff := cmp.Diff(fileContent, out)
@@ -173,7 +173,7 @@ func TestZone_CreateSubdomain(t *testing.T) {
 
 	testZone, err := zoneFromYaml(UNIT_FILE_DEFAULT)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Errorf("%s", err.Error())
 	}
 
 	s, err := testZone.CreateSubdomain("unit")

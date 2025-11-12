@@ -228,9 +228,7 @@ func (r *RecordResource) Create(ctx context.Context, req resource.CreateRequest,
 		return
 	}
 
-	//resp.Diagnostics.AddError("Blaat1", "blaat1")
 	resp.Diagnostics.Append(RecordFromDataModel(ctx, data, record)...)
-	//resp.Diagnostics.AddError("Blaat2", "blaat2")
 	if resp.Diagnostics.HasError() {
 		return
 	}

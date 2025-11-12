@@ -129,7 +129,7 @@ func (z *Zone) DeleteSubdomain(subdomain string) (err error) {
 	}
 
 	if len(z.doc.Content[0].Content) == 0 {
-		err = fmt.Errorf(z.doc.Content[0].Value)
+		err = fmt.Errorf("Error: %s", z.doc.Content[0].Value)
 		return
 	}
 
@@ -154,7 +154,7 @@ func (z *Zone) FindSubdomain(subdomain string) (record Subdomain, err error) {
 	}
 
 	if len(z.doc.Content[0].Content) == 0 {
-		err = fmt.Errorf(z.doc.Content[0].Value)
+		err = fmt.Errorf("Error: %s", z.doc.Content[0].Value)
 		return
 	}
 
