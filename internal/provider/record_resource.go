@@ -228,7 +228,7 @@ func (r *RecordResource) Create(ctx context.Context, req resource.CreateRequest,
 
 		subdomain, err = zone.CreateSubdomain(data.Name.ValueString())
 		if err != nil {
-			if !errors.Is(err, models.SubdomainAlreadyExistsError) {
+			if !errors.Is(err, models.ErrSubdomainAlreadyExists) {
 				resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create subdomain, got error: %s", err))
 				return
 			}

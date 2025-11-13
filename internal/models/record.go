@@ -165,7 +165,7 @@ func (r *Record) AddType(record Record) error {
 	if r.RecordNode.Kind == yaml.SequenceNode {
 		r.RecordNode.Content = append(r.RecordNode.Content, &noreRecord)
 	} else {
-		return fmt.Errorf("Can not add new type to a single typed record")
+		return fmt.Errorf("can not add new type to a single typed record")
 	}
 
 	return nil
@@ -455,40 +455,40 @@ func (r *RecordValue) StringLOC() string {
 func (r *RecordValue) validateIP(ip string) error {
 	parsed := net.ParseIP(ip)
 	if parsed == nil {
-		return ValidateNotAnIP
+		return ErrValidateNotAnIP
 	}
 	return nil
 }
 
 func (r *RecordValue) validateIPV4(ip string) error {
 	if err := r.validateIP(ip); err != nil {
-		return ValidateNotAnIPV4
+		return ErrValidateNotAnIPV4
 	}
 	if !strings.Contains(ip, ".") || strings.Contains(ip, ":") {
-		return ValidateNotAnIPV4
+		return ErrValidateNotAnIPV4
 	}
 
 	return nil
 }
 func (r *RecordValue) validateIPV6(ip string) error {
 	if err := r.validateIP(ip); err != nil {
-		return ValidateNotAnIPV6
+		return ErrValidateNotAnIPV6
 	}
 	if !strings.Contains(ip, ":") || strings.Contains(ip, ".") {
-		return ValidateNotAnIPV6
+		return ErrValidateNotAnIPV6
 	}
 
 	return nil
 }
 func (r *RecordValue) validateFQDN(value string, requireDot bool) error {
 	if err := r.validateIP(value); err == nil {
-		return ValidateIPNotAllowed
+		return ErrValidateIPNotAllowed
 	}
 
 	if !strings.HasSuffix(value, ".") && requireDot {
-		return ValidateFQDNRequiredTrailingDot
+		return ErrValidateFQDNRequiredTrailingDot
 	} else if strings.HasSuffix(value, ".") && !requireDot {
-		return ValidateFQDNForbidTrailingDot
+		return ErrValidateFQDNForbidTrailingDot
 	}
 
 	reg, err := regexp.Compile(`([\pL\pN\pS\-\_\.])+(\.?([\pL\pN]|xn\-\-[\pL\pN-]+)+\.?)`)
@@ -496,7 +496,7 @@ func (r *RecordValue) validateFQDN(value string, requireDot bool) error {
 		return err
 	}
 	if !reg.MatchString(value) {
-		return ValidateNotAFQDN
+		return ErrValidateNotAFQDN
 	}
 
 	return nil
@@ -508,7 +508,8 @@ func (r *RecordValue) UnmarshalString(value string) error {
 		return fmt.Errorf("value contains unescaped ';'")
 	}
 
-	r.baseRecordValue.StringValue = &value
+	r.StringValue = &value
+
 	return nil
 }
 
@@ -558,8 +559,8 @@ func (r *RecordValue) UnmarshalStringMX(value string) error {
 		return err
 	}
 
-	r.baseRecordValue.Preference = RefInt(pref)
-	r.baseRecordValue.Exchange = RefString(parts["exchange"])
+	r.Preference = RefInt(pref)
+	r.Exchange = RefString(parts["exchange"])
 
 	return nil
 }
@@ -627,7 +628,7 @@ func (r *RecordValue) UnmarshalStringURLFWD(value string) error {
 	}
 
 	if strings.HasSuffix(parts["path"], "/") && parts["path"] != "/" {
-		return fmt.Errorf("Path must not end with a slash (/)")
+		return fmt.Errorf("path must not end with a slash (/)")
 	}
 
 	//@todo: Validate values

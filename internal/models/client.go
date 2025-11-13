@@ -141,7 +141,7 @@ func (g *GitHubClient) GetZone(zone, scope string) (*Zone, error) {
 	options := &github.RepositoryContentGetOptions{Ref: sc.GetBranch(g.Branch)}
 
 	ctx := context.Background()
-	fileContent, directoryContent, resp, err := g.Client.Repositories.GetContents(ctx, g.Owner, g.Repo, filepath, options)
+	fileContent, directoryContent, resp, err := g.Repositories.GetContents(ctx, g.Owner, g.Repo, filepath, options)
 	if err != nil {
 		return nil, err
 	}
@@ -184,12 +184,13 @@ func (g *GitHubClient) getSHAForFile(filepath string) (string, error) {
 	opt := &github.CommitsListOptions{
 		Path: filepath,
 	}
-	commits, _, err := g.Client.Repositories.ListCommits(context.Background(), g.Owner, g.Repo, opt)
+
+	commits, _, err := g.Repositories.ListCommits(context.Background(), g.Owner, g.Repo, opt)
 	if err != nil {
 		return "", err
 	}
 	commit := commits[0]
-	t, _, err := g.Client.Git.GetTree(context.Background(), g.Owner, g.Repo, commit.GetSHA(), true)
+	t, _, err := g.Git.GetTree(context.Background(), g.Owner, g.Repo, commit.GetSHA(), true)
 	if err != nil {
 		return "", err
 	}
@@ -256,7 +257,7 @@ func (g *GitHubClient) SaveZone(zone *Zone, comment string) error {
 	}
 
 	ctx := context.Background()
-	repositoryContentResponse, response, err := g.Client.Repositories.UpdateFile(ctx, g.Owner, g.Repo, filepath, commitOption)
+	repositoryContentResponse, response, err := g.Repositories.UpdateFile(ctx, g.Owner, g.Repo, filepath, commitOption)
 	if response != nil && response.StatusCode == 409 {
 		return fmt.Errorf("409 error:`%v`", err)
 	}
