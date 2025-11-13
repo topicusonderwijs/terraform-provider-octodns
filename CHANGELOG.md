@@ -1,5 +1,11 @@
 ## UNRELEASED (TBA)
 
+## 1.1.3 (2025-11-13)
+
+CHANGES:
+- Add retry mode to fix 409 errors when applying multiple changes
+- Dependencies upgrade
+
 ## 0.1.2 (2024-07-08)
 
 FIXES:
