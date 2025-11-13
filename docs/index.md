@@ -73,6 +73,7 @@ provider "octodns" {
 - `branch` (String) The git branch to use, defaults to main
 - `git_provider` (String) Git provider, only accepted/supported value for now is github
 - `github_access_token` (String, Sensitive) Github personal access token, if not set the environment variable `GITHUB_TOKEN` or the `Github Cli (gh)` command will be used to get a token
+- `github_retry_limit` (Number) How many times to retry updating files in github
 - `scope` (Block List) (see [below for nested schema](#nestedblock--scope))
 
 <a id="nestedblock--scope"></a>

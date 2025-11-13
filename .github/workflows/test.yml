@@ -8,6 +8,8 @@ on:
     paths-ignore:
       - 'README.md'
   push:
+    branches:
+      - main
     paths-ignore:
       - 'README.md'
 
@@ -42,6 +44,7 @@ jobs:
         with:
           go-version-file: 'go.mod'
           cache: true
+      - uses: hashicorp/setup-terraform@v3
       - run: go generate ./...
       - name: git diff
         run: |
