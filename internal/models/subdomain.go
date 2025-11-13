@@ -3,10 +3,11 @@ package models
 import (
 	"errors"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"maps"
 	"slices"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 type Subdomain struct {
@@ -31,7 +32,7 @@ func (r *Subdomain) FindAllType() error {
 	for _, v := range TYPES {
 		if v.IsEnabled() {
 			_, err := r.GetType(v.String())
-			if err != nil && !errors.Is(err, TypeNotFoundError) {
+			if err != nil && !errors.Is(err, ErrTypeNotFound) {
 				return err
 			}
 		}
@@ -72,7 +73,7 @@ func (r *Subdomain) CreateType(rtype string) (record *Record, err error) {
 	}
 
 	if _, err = r.GetType(rtypeValidated); err != nil {
-		if errors.Is(err, TypeNotFoundError) {
+		if errors.Is(err, ErrTypeNotFound) {
 			// Can create Record Type
 
 			emptyNode := &yaml.Node{}
@@ -105,14 +106,14 @@ func (r *Subdomain) CreateType(rtype string) (record *Record, err error) {
 			case yaml.SequenceNode:
 				r.ContentNode.Content = append(r.ContentNode.Content, emptyNode)
 			default:
-				return nil, fmt.Errorf("Dont know how to add record type to a %d node", r.ContentNode.Kind)
+				return nil, fmt.Errorf("dont know how to add record type to a %d node", r.ContentNode.Kind)
 			}
 
 			return record, nil
 		}
 	}
 
-	return nil, TypeAlreadyExistsError
+	return nil, ErrTypeAlreadyExists
 
 }
 
@@ -141,7 +142,7 @@ func (r *Subdomain) GetType(rtype string) (record *Record, err error) {
 		}
 	}
 
-	return nil, TypeNotFoundError
+	return nil, ErrTypeNotFound
 
 }
 

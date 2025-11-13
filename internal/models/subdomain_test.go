@@ -61,7 +61,7 @@ func TestSubdomain_DeleteType(t *testing.T) {
 	}
 
 	_, err = sub.GetType(TYPE_NS.String())
-	if err != nil && !errors.Is(err, TypeNotFoundError) {
+	if err != nil && !errors.Is(err, ErrTypeNotFound) {
 		t.Errorf("DeleteType->GetType throws an error: %s", err)
 	} else if err == nil {
 		t.Errorf("DeleteType Type still present after deleting type")
@@ -87,7 +87,7 @@ func TestSubdomain_DeleteType(t *testing.T) {
 	}
 
 	sub, err = xZone.FindSubdomain("caa")
-	if err != nil && !errors.Is(err, SubdomainNotFoundError) {
+	if err != nil && !errors.Is(err, ErrSubdomainNotFound) {
 		t.Errorf("FindSubdomain2 throws an error: %s", err)
 	} else if err == nil {
 		t.Errorf("DeleteType Type still present after deleting type")

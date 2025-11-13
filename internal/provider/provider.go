@@ -6,17 +6,18 @@ package provider
 import (
 	"context"
 	"fmt"
+	"log"
+	"net/url"
+	"os"
+	"os/exec"
+	"strings"
+
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/topicusonderwijs/terraform-provider-octodns/internal/models"
-	"log"
-	"net/url"
-	"os"
-	"os/exec"
-	"strings"
 )
 
 const ENVPREFIX = "OCTODNS_"
@@ -38,6 +39,7 @@ type OctodnsProviderModel struct {
 	GithubAccessToken types.String `tfsdk:"github_access_token"`
 	GithubOrg         types.String `tfsdk:"github_org"`
 	GithubRepo        types.String `tfsdk:"github_repo"`
+	GithubRetryLimit  types.Int32  `tfsdk:"github_retry_limit"`
 
 	GitBranch      types.String `tfsdk:"branch"`
 	GitAuthorName  types.String `tfsdk:"author_name"`
@@ -81,6 +83,10 @@ func (p *OctodnsProvider) Schema(ctx context.Context, req provider.SchemaRequest
 			"github_repo": schema.StringAttribute{
 				MarkdownDescription: "Github repository",
 				Required:            true,
+			},
+			"github_retry_limit": schema.Int32Attribute{
+				MarkdownDescription: "How many times to retry updating files in github",
+				Optional:            true,
 			},
 			"branch": schema.StringAttribute{
 				MarkdownDescription: "The git branch to use, defaults to main",
@@ -135,6 +141,7 @@ func (p *OctodnsProvider) Configure(ctx context.Context, req provider.ConfigureR
 
 	gitprovider := "github"
 	githubToken := ""
+	githubRetryLimit := 5
 
 	// Configuration values are now available.
 	if data.GitProvider.IsNull() || data.GitProvider.ValueString() == "github" { /* ... */
@@ -162,6 +169,10 @@ func (p *OctodnsProvider) Configure(ctx context.Context, req provider.ConfigureR
 				"While configuring the provider, the Github access token was not found in "+
 					"provider configuration block github_access_token attribute.",
 			)
+		}
+
+		if !data.GithubRetryLimit.IsNull() {
+			githubRetryLimit = int(data.GithubRetryLimit.ValueInt32())
 		}
 
 		if data.GithubOrg.IsNull() {
@@ -195,7 +206,7 @@ func (p *OctodnsProvider) Configure(ctx context.Context, req provider.ConfigureR
 
 	switch gitprovider {
 	default:
-		client, err = models.NewGitHubClient(githubToken, data.GithubOrg.ValueString(), data.GithubRepo.ValueString())
+		client, err = models.NewGitHubClient(githubToken, data.GithubOrg.ValueString(), data.GithubRepo.ValueString(), githubRetryLimit)
 	}
 
 	if err != nil {

@@ -204,7 +204,7 @@ func TestZone_CreateSubdomain(t *testing.T) {
 	s, err = testZone.CreateSubdomain("unit")
 	if err == nil {
 		t.Errorf("CreateSubdomain did not throw error while trying to create an existing subdomain")
-	} else if !errors.Is(err, SubdomainAlreadyExistsError) {
+	} else if !errors.Is(err, ErrSubdomainAlreadyExists) {
 		t.Errorf("CreateSubdomain unexpected error while trying to create an existing subdomain: %s", err)
 	}
 

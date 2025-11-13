@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"os"
 	"slices"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 type Zone struct {
@@ -58,9 +59,9 @@ func (z *Zone) CreateSubdomain(subdomain string) (sub Subdomain, err error) {
 	var existingSub Subdomain
 	existingSub, err = z.FindSubdomain(subdomain)
 	if err == nil {
-		return existingSub, SubdomainAlreadyExistsError
+		return existingSub, ErrSubdomainAlreadyExists
 	} else {
-		if errors.Is(err, SubdomainNotFoundError) {
+		if errors.Is(err, ErrSubdomainNotFound) {
 			err = nil // We can ignore this error
 		} else {
 			return // return original error
@@ -129,7 +130,7 @@ func (z *Zone) DeleteSubdomain(subdomain string) (err error) {
 	}
 
 	if len(z.doc.Content[0].Content) == 0 {
-		err = fmt.Errorf("Error: %s", z.doc.Content[0].Value)
+		err = fmt.Errorf("error: %s", z.doc.Content[0].Value)
 		return
 	}
 
@@ -154,7 +155,7 @@ func (z *Zone) FindSubdomain(subdomain string) (record Subdomain, err error) {
 	}
 
 	if len(z.doc.Content[0].Content) == 0 {
-		err = fmt.Errorf("Error: %s", z.doc.Content[0].Value)
+		err = fmt.Errorf("error: %s", z.doc.Content[0].Value)
 		return
 	}
 
@@ -166,7 +167,7 @@ func (z *Zone) FindSubdomain(subdomain string) (record Subdomain, err error) {
 		}
 	}
 
-	return record, SubdomainNotFoundError
+	return record, ErrSubdomainNotFound
 }
 
 func (z *Zone) FindRecordByType(subdomain string, rtype string) (rrecord *yaml.Node, rcontent *yaml.Node, rparent *yaml.Node, err error) {

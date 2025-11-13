@@ -7,6 +7,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -17,7 +20,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/topicusonderwijs/terraform-provider-octodns/internal/models"
-	"strings"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces.
@@ -208,38 +210,59 @@ func (r *RecordResource) Create(ctx context.Context, req resource.CreateRequest,
 	r.client.Mutex.Lock()
 	defer r.client.Mutex.Unlock()
 
-	zone, err := r.client.GetZone(data.Zone.ValueString(), data.Scope.ValueString())
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Could not retrieve zone: %s", err.Error()))
-		return
-	}
+	// Retry loop
+	var zone *models.Zone
+	var subdomain models.Subdomain
+	var record *models.Record
+	var err error
 
-	subdomain, err := zone.CreateSubdomain(data.Name.ValueString())
-	if err != nil {
-		if !errors.Is(err, models.SubdomainAlreadyExistsError) {
-			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create subdomain, got error: %s", err))
+	retryCounter := 0
+
+	if retryCounter <= r.client.RetryLimit {
+
+		zone, err = r.client.GetZone(data.Zone.ValueString(), data.Scope.ValueString())
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Could not retrieve zone: %s", err.Error()))
 			return
 		}
+
+		subdomain, err = zone.CreateSubdomain(data.Name.ValueString())
+		if err != nil {
+			if !errors.Is(err, models.ErrSubdomainAlreadyExists) {
+				resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create subdomain, got error: %s", err))
+				return
+			}
+		}
+
+		record, err = subdomain.CreateType(r.rtype.String())
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create type record, got error: %s", err))
+			return
+		}
+
+		resp.Diagnostics.Append(RecordFromDataModel(ctx, data, record)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+
+		err = subdomain.UpdateYaml()
+		if err != nil {
+			resp.Diagnostics.AddError("Yaml Error", fmt.Sprintf("Unable to update subdomain in yaml, got error: %s", err))
+			return
+		}
+
+		err = r.client.SaveZone(zone, fmt.Sprintf("chore(%s): create %s record for %s", data.Zone.ValueString(), r.rtype.String(), data.Name.ValueString()))
+		if err != nil {
+			retryCounter++
+			if retryCounter <= r.client.RetryLimit {
+				resp.Diagnostics.AddWarning("Client Warning", fmt.Sprintf("Failed to save zone, going to fully retry: %s", err.Error()))
+				time.Sleep(time.Duration(retryCounter*5) * time.Second)
+				err = nil
+			}
+		}
+
 	}
 
-	record, err := subdomain.CreateType(r.rtype.String())
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create type record, got error: %s", err))
-		return
-	}
-
-	resp.Diagnostics.Append(RecordFromDataModel(ctx, data, record)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	err = subdomain.UpdateYaml()
-	if err != nil {
-		resp.Diagnostics.AddError("Yaml Error", fmt.Sprintf("Unable to update subdomain in yaml, got error: %s", err))
-		return
-	}
-
-	err = r.client.SaveZone(zone, fmt.Sprintf("chore(%s): create %s record for %s", data.Zone.ValueString(), r.rtype.String(), data.Name.ValueString()))
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Could not save zone: %s", err.Error()))
 		return
@@ -281,19 +304,19 @@ func (r *RecordResource) Read(ctx context.Context, req resource.ReadRequest, res
 	zone, err := r.client.GetZone(data.Zone.ValueString(), data.Scope.ValueString())
 	tflog.Trace(ctx, fmt.Sprintf("==== After Zone ==== %s", ""))
 	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Could not retrieve zone: %s", err.Error()))
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Retreiving zone %s from scope %s resulted in error: %s", data.Zone.ValueString(), data.Scope.ValueString(), err.Error()))
 		return
 	}
 
 	subdomain, err := zone.FindSubdomain(data.Name.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read subdomain, got error: %s", err))
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read subdomain %s, got error: %s", data.Name.ValueString(), err))
 		return
 	}
 
 	record, err := subdomain.GetType(r.rtype.String())
 	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read type, got error: %s", err))
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read type %s, got error: %s", r.rtype.String(), err))
 		return
 	}
 
@@ -323,33 +346,52 @@ func (r *RecordResource) Update(ctx context.Context, req resource.UpdateRequest,
 		return
 	}
 
-	zone, err := r.client.GetZone(state.Zone.ValueString(), state.Scope.ValueString())
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Could not retrieve zone: %s", err.Error()))
-		return
+	// Retry loop
+	var zone *models.Zone
+	var subdomain models.Subdomain
+	var record *models.Record
+	var err error
+
+	retryCounter := 0
+
+	if retryCounter <= r.client.RetryLimit {
+
+		zone, err = r.client.GetZone(state.Zone.ValueString(), state.Scope.ValueString())
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Could not retrieve zone: %s", err.Error()))
+			return
+		}
+
+		subdomain, err = zone.FindSubdomain(state.Name.ValueString())
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to find subdomain, got error: %s", err))
+			return
+		}
+
+		record, err = subdomain.GetType(r.rtype.String())
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to find type record, got error: %s", err))
+			return
+		}
+
+		resp.Diagnostics.Append(RecordFromDataModel(ctx, data, record)...)
+
+		err = subdomain.UpdateYaml()
+		if err != nil {
+			resp.Diagnostics.AddError("Yaml Error", fmt.Sprintf("Unable to update subdomain in yaml, got error: %s", err))
+			return
+		}
+
+		err = r.client.SaveZone(zone, fmt.Sprintf("chore(%s): update %s record for %s", data.Zone.ValueString(), r.rtype.String(), data.Name.ValueString()))
+		if err != nil {
+			retryCounter++
+			if retryCounter <= r.client.RetryLimit {
+				resp.Diagnostics.AddWarning("Client Warning", fmt.Sprintf("Failed to save zone, going to fully retry: %s", err.Error()))
+				time.Sleep(time.Duration(retryCounter*5) * time.Second)
+				err = nil
+			}
+		}
 	}
-
-	subdomain, err := zone.FindSubdomain(state.Name.ValueString())
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to find subdomain, got error: %s", err))
-		return
-	}
-
-	record, err := subdomain.GetType(r.rtype.String())
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to find type record, got error: %s", err))
-		return
-	}
-
-	resp.Diagnostics.Append(RecordFromDataModel(ctx, data, record)...)
-
-	err = subdomain.UpdateYaml()
-	if err != nil {
-		resp.Diagnostics.AddError("Yaml Error", fmt.Sprintf("Unable to update subdomain in yaml, got error: %s", err))
-		return
-	}
-
-	err = r.client.SaveZone(zone, fmt.Sprintf("chore(%s): update %s record for %s", data.Zone.ValueString(), r.rtype.String(), data.Name.ValueString()))
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Could not save zone: %s", err.Error()))
 		return
@@ -383,39 +425,57 @@ func (r *RecordResource) Delete(ctx context.Context, req resource.DeleteRequest,
 	r.client.Mutex.Lock()
 	defer r.client.Mutex.Unlock()
 
-	zone, err := r.client.GetZone(data.Zone.ValueString(), data.Scope.ValueString())
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Could not retrieve zone: %s", err.Error()))
-		return
-	}
+	// Retry loop
+	var zone *models.Zone
+	var subdomain models.Subdomain
+	var err error
 
-	subdomain, err := zone.FindSubdomain(data.Name.ValueString())
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to find subdomain, got error: %s", err))
-		return
-	}
+	retryCounter := 0
 
-	err = subdomain.DeleteType(r.rtype.String())
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to find type record, got error: %s", err))
-		return
-	}
+	if retryCounter <= r.client.RetryLimit {
 
-	err = subdomain.FindAllType()
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Could refresh all types of subdmain: %s", err.Error()))
-	}
-
-	if len(subdomain.Types) == 0 {
-		resp.Diagnostics.AddWarning("Client Warning", fmt.Sprintf("Trying to delete subdomain: %s / %s", subdomain.Name, data.Name))
-		err = zone.DeleteSubdomain(subdomain.Name)
+		zone, err = r.client.GetZone(data.Zone.ValueString(), data.Scope.ValueString())
 		if err != nil {
-			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete subdomain, got error: %s", err))
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Could not retrieve zone: %s", err.Error()))
 			return
 		}
-	}
 
-	err = r.client.SaveZone(zone, fmt.Sprintf("chore(%s): delete %s record for %s", data.Zone.ValueString(), r.rtype.String(), data.Name.ValueString()))
+		subdomain, err = zone.FindSubdomain(data.Name.ValueString())
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to find subdomain, got error: %s", err))
+			return
+		}
+
+		err = subdomain.DeleteType(r.rtype.String())
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to find type record, got error: %s", err))
+			return
+		}
+
+		err = subdomain.FindAllType()
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Could refresh all types of subdmain: %s", err.Error()))
+		}
+
+		if len(subdomain.Types) == 0 {
+			//resp.Diagnostics.AddWarning("Client Warning", fmt.Sprintf("Trying to delete subdomain: %s / %s", subdomain.Name, data.Name))
+			err = zone.DeleteSubdomain(subdomain.Name)
+			if err != nil {
+				resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete subdomain, got error: %s", err))
+				return
+			}
+		}
+
+		err = r.client.SaveZone(zone, fmt.Sprintf("chore(%s): delete %s record for %s", data.Zone.ValueString(), r.rtype.String(), data.Name.ValueString()))
+		if err != nil {
+			retryCounter++
+			if retryCounter <= r.client.RetryLimit {
+				resp.Diagnostics.AddWarning("Client Warning", fmt.Sprintf("Failed to save zone , going to fully retry: %s", err.Error()))
+				time.Sleep(time.Duration(retryCounter*5) * time.Second)
+				err = nil
+			}
+		}
+	}
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Could not save zone: %s", err.Error()))
 		return
