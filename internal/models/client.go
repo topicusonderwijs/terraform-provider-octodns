@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"sync"
+
 	"github.com/google/go-github/v55/github"
 	"golang.org/x/oauth2"
-	"sync"
 )
 
 const (
@@ -149,7 +150,12 @@ func (g *GitHubClient) GetZone(zone, scope string) (*Zone, error) {
 	//@todo: Handle multiple pages
 	//fmt.Println("Nextpage:", resp.NextPage)
 
-	contents, err := base64.StdEncoding.DecodeString(*fileContent.Content)
+	b64FileContent, err := fileContent.GetContent()
+	if err != nil {
+		return nil, err
+	}
+
+	contents, err := base64.StdEncoding.DecodeString(b64FileContent)
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +257,7 @@ func (g *GitHubClient) SaveZone(zone *Zone, comment string) error {
 
 	ctx := context.Background()
 	repositoryContentResponse, response, err := g.Client.Repositories.UpdateFile(ctx, g.Owner, g.Repo, filepath, commitOption)
-	if response.StatusCode == 409 {
+	if response != nil && response.StatusCode == 409 {
 		return fmt.Errorf("409 error:`%v`", err)
 	}
 	if err != nil {

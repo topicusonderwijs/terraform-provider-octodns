@@ -3,10 +3,11 @@ package models
 import (
 	"errors"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"maps"
 	"slices"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 type Subdomain struct {

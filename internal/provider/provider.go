@@ -6,17 +6,18 @@ package provider
 import (
 	"context"
 	"fmt"
+	"log"
+	"net/url"
+	"os"
+	"os/exec"
+	"strings"
+
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/topicusonderwijs/terraform-provider-octodns/internal/models"
-	"log"
-	"net/url"
-	"os"
-	"os/exec"
-	"strings"
 )
 
 const ENVPREFIX = "OCTODNS_"

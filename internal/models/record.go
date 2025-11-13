@@ -2,12 +2,13 @@ package models
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"log"
 	"net"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 type Terraform struct {
