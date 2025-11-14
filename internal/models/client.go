@@ -2,7 +2,6 @@ package models
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"sync"
 
@@ -150,12 +149,7 @@ func (g *GitHubClient) GetZone(zone, scope string) (*Zone, error) {
 	//@todo: Handle multiple pages
 	//fmt.Println("Nextpage:", resp.NextPage)
 
-	b64FileContent, err := fileContent.GetContent()
-	if err != nil {
-		return nil, err
-	}
-
-	contents, err := base64.StdEncoding.DecodeString(b64FileContent)
+	contents, err := fileContent.GetContent()
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +163,7 @@ func (g *GitHubClient) GetZone(zone, scope string) (*Zone, error) {
 		z.sha = *directoryContent[0].SHA
 	}
 
-	err = z.ReadYaml(contents)
+	err = z.ReadYaml([]byte(contents))
 	g.Zones[filepath] = &z
 	if err != nil {
 		return nil, err

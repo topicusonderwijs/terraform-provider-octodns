@@ -1,5 +1,8 @@
 ## UNRELEASED (TBA)
 
+FIXES:
+- Fix `illegal base64 data at input byte 0` error
+
 ## 1.1.3 (2025-11-13)
 
 CHANGES:
