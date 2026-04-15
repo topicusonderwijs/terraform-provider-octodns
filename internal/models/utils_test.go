@@ -173,7 +173,7 @@ func TestRegexToMap(t *testing.T) {
 
 	for _, test := range tests {
 
-		pattern, err := regexp.Compile(test.Pattern)
+		pattern := regexp.MustCompile(test.Pattern)
 		got, err := regexToMap(test.Value, pattern)
 
 		if test.WantErr {

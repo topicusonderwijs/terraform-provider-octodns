@@ -170,7 +170,7 @@ func (g *GitHubClient) GetZone(zone, scope string) (*Zone, error) {
 	}
 
 }
-
+/*
 func (g *GitHubClient) getSHAForFile(filepath string) (string, error) {
 
 	opt := &github.CommitsListOptions{
@@ -199,6 +199,7 @@ func (g *GitHubClient) getSHAForFile(filepath string) (string, error) {
 
 	return "", nil
 }
+*/
 
 func (g *GitHubClient) SaveZone(zone *Zone, comment string) error {
 
