@@ -652,7 +652,7 @@ func (r *RecordValue) UnmarshalStringURLFWD(value string) error {
 
 }
 
-var regStringSSHFP = regexp.MustCompile(`^(?P<code>0|301|302) (?P<masking>0|1|2) (?P<path>[^ ]+) (?P<query>0|1) (?P<target>.+)$`)
+var regStringSSHFP = regexp.MustCompile(`^(?P<algorithm>\d+) (?P<fingerprinttype>\d+) (?P<fingerprint>.+)$`)
 
 func (r *RecordValue) UnmarshalStringSSHFP(value string) error {
 
