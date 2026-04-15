@@ -140,7 +140,7 @@ func (g *GitHubClient) GetZone(zone, scope string) (*Zone, error) {
 	options := &github.RepositoryContentGetOptions{Ref: sc.GetBranch(g.Branch)}
 
 	ctx := context.Background()
-	fileContent, directoryContent, resp, err := g.Repositories.GetContents(ctx, g.Owner, g.Repo, filepath, options)
+	fileContent, _, resp, err := g.Repositories.GetContents(ctx, g.Owner, g.Repo, filepath, options)
 	if err != nil {
 		return nil, err
 	}
@@ -159,9 +159,7 @@ func (g *GitHubClient) GetZone(zone, scope string) (*Zone, error) {
 	z.name = zone
 	z.scope = scope
 
-	if len(directoryContent) > 0 {
-		z.sha = *directoryContent[0].SHA
-	}
+	z.sha = fileContent.GetSHA()
 
 	err = z.ReadYaml([]byte(contents))
 	g.Zones[filepath] = &z
@@ -183,15 +181,19 @@ func (g *GitHubClient) getSHAForFile(filepath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	commit := commits[0]
-	t, _, err := g.Git.GetTree(context.Background(), g.Owner, g.Repo, commit.GetSHA(), true)
-	if err != nil {
-		return "", err
-	}
 
-	for _, entry := range t.Entries {
-		if *entry.Path == filepath {
-			return *entry.SHA, nil
+	if len(commits) > 0 {
+
+		commit := commits[0]
+		t, _, err := g.Git.GetTree(context.Background(), g.Owner, g.Repo, commit.GetSHA(), true)
+		if err != nil {
+			return "", err
+		}
+
+		for _, entry := range t.Entries {
+			if *entry.Path == filepath {
+				return *entry.SHA, nil
+			}
 		}
 	}
 
@@ -216,10 +218,11 @@ func (g *GitHubClient) SaveZone(zone *Zone, comment string) error {
 
 	filepath := scope.CreateFilePath(zone.name)
 
-	sha, err := g.getSHAForFile(filepath)
-	if err != nil {
-		return err
-	}
+	sha := zone.sha
+	//	sha, err := g.getSHAForFile(filepath)
+	//	if err != nil {
+	//		return err
+	//	}
 
 	_ = filepath
 
@@ -258,6 +261,8 @@ func (g *GitHubClient) SaveZone(zone *Zone, comment string) error {
 	if err != nil {
 		return err
 	}
+
+	delete(g.Zones, filepath)
 
 	_ = repositoryContentResponse
 	_ = response

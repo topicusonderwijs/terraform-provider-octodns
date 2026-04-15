@@ -45,19 +45,18 @@ func RefStringAsFloat64(value string) *float64 {
 	return &v
 }
 
-func regexToMap(value, pattern string) (result map[string]string, err error) {
+func regexToMap(value string, pattern *regexp.Regexp) (result map[string]string, err error) {
 
 	result = map[string]string{}
-	reg := regexp.MustCompile(pattern)
 
-	if !reg.MatchString(value) {
+	if !pattern.MatchString(value) {
 		err = fmt.Errorf("value should match %s", pattern)
 		return
 	}
 
-	finds := reg.FindStringSubmatch(value)
+	finds := pattern.FindStringSubmatch(value)
 
-	for i, k := range reg.SubexpNames() {
+	for i, k := range pattern.SubexpNames() {
 		if k != "" {
 			result[k] = finds[i]
 		}

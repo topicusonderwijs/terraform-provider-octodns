@@ -2,6 +2,7 @@ package models
 
 import (
 	"github.com/google/go-cmp/cmp"
+	"regexp"
 	"testing"
 )
 
@@ -172,7 +173,8 @@ func TestRegexToMap(t *testing.T) {
 
 	for _, test := range tests {
 
-		got, err := regexToMap(test.Value, test.Pattern)
+		pattern, err := regexp.Compile(test.Pattern)
+		got, err := regexToMap(test.Value, pattern)
 
 		if test.WantErr {
 			if err == nil {

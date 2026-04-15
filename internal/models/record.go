@@ -150,7 +150,9 @@ func (r *Record) AddValueFromString(valueString string) error {
 		err = value.UnmarshalStringURLFWD(valueString)
 	}
 
-	r.Values = append(r.Values, value)
+	if err == nil {
+		r.Values = append(r.Values, value)
+	}
 
 	return err
 }
@@ -542,9 +544,11 @@ func (r *RecordValue) UnmarshalStringFQDN(value string) error {
 	//}
 }
 
+var regStringMX = regexp.MustCompile(`^(?P<preference>\d+) (?P<exchange>.[^ ]+)$`)
+
 func (r *RecordValue) UnmarshalStringMX(value string) error {
 
-	parts, err := regexToMap(value, `^(?P<preference>\d+) (?P<exchange>.[^ ]+)$`)
+	parts, err := regexToMap(value, regStringMX)
 	if err != nil {
 		return err
 	}
@@ -565,9 +569,11 @@ func (r *RecordValue) UnmarshalStringMX(value string) error {
 	return nil
 }
 
+var regStringSRV = regexp.MustCompile(`^(?P<priority>\d+) (?P<weight>\d+) (?P<port>\d+) (?P<target>.+)$`)
+
 func (r *RecordValue) UnmarshalStringSRV(value string) error {
 
-	parts, err := regexToMap(value, `^(?P<priority>\d+) (?P<weight>\d+) (?P<port>\d+) (?P<target>.+)$`)
+	parts, err := regexToMap(value, regStringSRV)
 	if err != nil {
 		return err
 	}
@@ -593,9 +599,11 @@ func (r *RecordValue) UnmarshalStringSRV(value string) error {
 
 }
 
+var regStringCAA = regexp.MustCompile(`^(?P<flags>\d+) (?P<tag>issue|issuewild|iodef) (?P<target>(?P<host>.+)(?P<policy>|; policy=(dv|ev|cv)))$`)
+
 func (r *RecordValue) UnmarshalStringCAA(value string) error {
 
-	parts, err := regexToMap(value, `^(?P<flags>\d+) (?P<tag>issue|issuewild|iodef) (?P<target>(?P<host>.+)(?P<policy>|; policy=(dv|ev|cv)))$`)
+	parts, err := regexToMap(value, regStringCAA)
 	if err != nil {
 		return err
 	}
@@ -620,9 +628,11 @@ func (r *RecordValue) UnmarshalStringCAA(value string) error {
 
 }
 
+var regStringURLFWD = regexp.MustCompile(`^(?P<code>0|301|302) (?P<masking>0|1|2) (?P<path>[^ ]+) (?P<query>0|1) (?P<target>.+)$`)
+
 func (r *RecordValue) UnmarshalStringURLFWD(value string) error {
 
-	parts, err := regexToMap(value, `^(?P<code>0|301|302) (?P<masking>0|1|2) (?P<path>[^ ]+) (?P<query>0|1) (?P<target>.+)$`)
+	parts, err := regexToMap(value, regStringURLFWD)
 	if err != nil {
 		return err
 	}
@@ -641,9 +651,12 @@ func (r *RecordValue) UnmarshalStringURLFWD(value string) error {
 	return nil
 
 }
+
+var regStringSSHFP = regexp.MustCompile(`^(?P<code>0|301|302) (?P<masking>0|1|2) (?P<path>[^ ]+) (?P<query>0|1) (?P<target>.+)$`)
+
 func (r *RecordValue) UnmarshalStringSSHFP(value string) error {
 
-	parts, err := regexToMap(value, `^(?P<algorithm>\d+) (?P<fingerprinttype>\d+) (?P<fingerprint>.+)$`)
+	parts, err := regexToMap(value, regStringSSHFP)
 	if err != nil {
 		return err
 	}
@@ -657,9 +670,11 @@ func (r *RecordValue) UnmarshalStringSSHFP(value string) error {
 
 }
 
+var regStringNAPTR = regexp.MustCompile(`^(?P<order>\d+) (?P<preference>\d+) \"(?P<flags>.+)\" \"(?P<service>.+)\" \"(?P<regexp>.+)\" (?P<replacement>.+)$`)
+
 func (r *RecordValue) UnmarshalStringNAPTR(value string) error {
 
-	parts, err := regexToMap(value, `^(?P<order>\d+) (?P<preference>\d+) \"(?P<flags>.+)\" \"(?P<service>.+)\" \"(?P<regexp>.+)\" (?P<replacement>.+)$`)
+	parts, err := regexToMap(value, regStringNAPTR)
 	if err != nil {
 		return err
 	}
@@ -675,38 +690,13 @@ func (r *RecordValue) UnmarshalStringNAPTR(value string) error {
 	return nil
 }
 
+var regStringLOC = regexp.MustCompile(`^(?P<latdeg>\d+) (|(?P<latm>\d+) (|(?P<lats>\d+(|.\d+)) ))(?P<latdir>N|S) ` +
+	`(?P<longdeg>\d+) (|(?P<longm>\d+) (|(?P<longs>\d+(|.\d+)) ))(?P<longdir>E|W) ` +
+	`(?P<alt>\d+(|.\d+))` +
+	`(| (?P<size>\d+)(| (?P<prh>\d+)(| (?P<prv>\d+))))$`)
+
 func (r *RecordValue) UnmarshalStringLOC(value string) error {
-
-	/*
-		return fmt.Sprintf(
-			"%s %s %0.2f %s",
-			fnLatLong(r.LatDegrees, r.LatMinutes, r.LatSeconds, r.LatDirection),
-			fnLatLong(r.LongDegrees, r.LongMinutes, r.LongSeconds, r.LongDirection),
-			*r.Altitude,
-			optional,
-		)
-	*/
-	/*
-		values := []string{
-			"31 58 52.10 S 115 49 11.70 E 20.00 10 10 2",
-			"31 58 S 115 49 E 20.00 10 10 2",
-			"31 S 115 E 20.00 10 10 2",
-			"31 S 115 E 20.00 10 10",
-			"31 S 115 E 20.00 10",
-			"31 S 115 E 20.00",
-		}
-
-		for _, value = range values {
-	*/
-
-	//(?:\d+(?:\.\d*)?|\.\d+)
-	parts, err := regexToMap(
-		value,
-		`^(?P<latdeg>\d+) (|(?P<latm>\d+) (|(?P<lats>\d+(|.\d+)) ))(?P<latdir>N|S) `+
-			`(?P<longdeg>\d+) (|(?P<longm>\d+) (|(?P<longs>\d+(|.\d+)) ))(?P<longdir>E|W) `+
-			`(?P<alt>\d+(|.\d+))`+
-			`(| (?P<size>\d+)(| (?P<prh>\d+)(| (?P<prv>\d+))))$`,
-	)
+	parts, err := regexToMap(value, regStringLOC)
 	if err != nil {
 		return err
 	}

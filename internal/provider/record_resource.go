@@ -218,7 +218,7 @@ func (r *RecordResource) Create(ctx context.Context, req resource.CreateRequest,
 
 	retryCounter := 0
 
-	if retryCounter <= r.client.RetryLimit {
+	for retryCounter <= r.client.RetryLimit {
 
 		zone, err = r.client.GetZone(data.Zone.ValueString(), data.Scope.ValueString())
 		if err != nil {
@@ -259,6 +259,8 @@ func (r *RecordResource) Create(ctx context.Context, req resource.CreateRequest,
 				time.Sleep(time.Duration(retryCounter*5) * time.Second)
 				err = nil
 			}
+		} else {
+			break
 		}
 
 	}
@@ -354,7 +356,7 @@ func (r *RecordResource) Update(ctx context.Context, req resource.UpdateRequest,
 
 	retryCounter := 0
 
-	if retryCounter <= r.client.RetryLimit {
+	for retryCounter <= r.client.RetryLimit {
 
 		zone, err = r.client.GetZone(state.Zone.ValueString(), state.Scope.ValueString())
 		if err != nil {
@@ -390,6 +392,8 @@ func (r *RecordResource) Update(ctx context.Context, req resource.UpdateRequest,
 				time.Sleep(time.Duration(retryCounter*5) * time.Second)
 				err = nil
 			}
+		} else {
+			break
 		}
 	}
 	if err != nil {
@@ -432,7 +436,7 @@ func (r *RecordResource) Delete(ctx context.Context, req resource.DeleteRequest,
 
 	retryCounter := 0
 
-	if retryCounter <= r.client.RetryLimit {
+	for retryCounter <= r.client.RetryLimit {
 
 		zone, err = r.client.GetZone(data.Zone.ValueString(), data.Scope.ValueString())
 		if err != nil {
@@ -454,7 +458,8 @@ func (r *RecordResource) Delete(ctx context.Context, req resource.DeleteRequest,
 
 		err = subdomain.FindAllType()
 		if err != nil {
-			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Could refresh all types of subdmain: %s", err.Error()))
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Could not refresh all types of subdmain: %s", err.Error()))
+			return
 		}
 
 		if len(subdomain.Types) == 0 {
@@ -474,6 +479,8 @@ func (r *RecordResource) Delete(ctx context.Context, req resource.DeleteRequest,
 				time.Sleep(time.Duration(retryCounter*5) * time.Second)
 				err = nil
 			}
+		} else {
+			break
 		}
 	}
 	if err != nil {
