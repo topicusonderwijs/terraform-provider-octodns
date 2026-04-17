@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -154,7 +155,9 @@ func RecordFromDataModel(ctx context.Context, data *RecordModel, record *models.
 
 	record.ClearValues()
 	for _, v := range data.Values {
-		_ = record.AddValueFromString(v.ValueString())
+		if err := record.AddValueFromString(v.ValueString()); err != nil {
+			diags.AddError("Value Error", fmt.Sprintf("Invalid value %q: %s", v.ValueString(), err))
+		}
 	}
 
 	record.Octodns = models.OctodnsRecordConfig{}

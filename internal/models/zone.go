@@ -16,17 +16,6 @@ type Zone struct {
 	scope string `yaml:"-"`
 	doc   yaml.Node
 	sha   string
-	open  int
-}
-
-func (z *Zone) Open() int {
-	z.open++
-	return z.open
-}
-
-func (z *Zone) Close() int {
-	z.open--
-	return z.open
 }
 
 func (z *Zone) ReadYamlFile(filename string) error {
@@ -74,8 +63,6 @@ func (z *Zone) CreateSubdomain(subdomain string) (sub Subdomain, err error) {
 
 	z.doc.Content[0].Content = append(z.doc.Content[0].Content, &keyNode, &contentNode)
 
-	_ = keyNode
-
 	sub = Subdomain{
 		Name:        subdomain,
 		keyNode:     &keyNode,
@@ -105,10 +92,6 @@ func (z *Zone) GetRecord(subdomain string, rtype string) (record *Record, err er
 			Terraform:    Terraform{},
 		},
 	}
-
-	_ = recordChild
-	_ = recordNode
-	_ = recordParent
 
 	err = recordChild.Decode(record)
 	if err != nil {
@@ -200,9 +183,6 @@ func (z *Zone) FindRecordByType(subdomain string, rtype string) (rrecord *yaml.N
 			rparent = z.doc.Content[0].Content[i]
 			rcontent = z.doc.Content[0].Content[i+1]
 
-			_ = rparent
-			_ = rcontent
-
 			switch rcontent.Kind {
 			case yaml.MappingNode:
 				rrecord = findType(rcontent, rtype)
@@ -250,87 +230,3 @@ func (z Zone) WriteYamlToFile(filename string) error {
 	return nil
 }
 
-/*
-type OldZone struct {
-	Name string `yaml:"-"`
-
-	Records []Record
-}
-
-func (z *OldZone) UnmarshalYAML(value *yaml.Node) error {
-	var items map[string]yaml.Node
-	if err := value.Decode(&items); err == nil {
-		for k, v := range items {
-			if k == "" {
-				k = "@"
-			}
-
-			var slice []yaml.Node
-			var object yaml.Node
-			if err := v.Decode(&slice); err == nil {
-				// Node is Slice
-			} else if err := v.Decode(&object); err == nil {
-				// Node is Single object
-				slice = []yaml.Node{object}
-			} else {
-				return err
-			}
-
-			records, err := decodeRecords(k, slice)
-			if err != nil {
-				return err
-			}
-			_ = records
-			z.Records = append(z.Records, records...)
-		}
-		return nil
-	} else {
-		return err
-	}
-}
-
-func (z OldZone) MarshalYAML() (interface{}, error) {
-
-	out := make(map[string][]Record, 0)
-
-	for _, record := range z.Records {
-
-		if _, ok := out[record.Name]; !ok {
-			out[record.Name] = []Record{record}
-		} else {
-			out[record.Name] = append(out[record.Name], record)
-		}
-
-	}
-
-	return out, nil
-
-}
-
-func decodeRecords(subdomain string, nodes []yaml.Node) ([]Record, error) {
-
-	records := []Record{}
-
-	for i := range nodes {
-		record, err := decodeRecord(subdomain, nodes[i])
-		if err != nil {
-			return []Record{}, err
-		}
-		records = append(records, record)
-	}
-
-	return records, nil
-
-}
-
-func decodeRecord(subdomain string, node yaml.Node) (Record, error) {
-
-	record := Record{}
-	record.Name = subdomain
-
-	err := node.Decode(&record)
-
-	return record, err
-
-}
-*/

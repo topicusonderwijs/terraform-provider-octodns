@@ -157,6 +157,11 @@ func (r *Record) AddValueFromString(valueString string) error {
 	return err
 }
 
+func ValidateValueString(rtype, value string) error {
+	r := &Record{BaseRecord: BaseRecord{Type: rtype}}
+	return r.AddValueFromString(value)
+}
+
 func (r *Record) AddType(record Record) error {
 	noreRecord := yaml.Node{}
 

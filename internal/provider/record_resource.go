@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -17,10 +16,42 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/topicusonderwijs/terraform-provider-octodns/internal/models"
 )
+
+type valuesValidator struct {
+	rtype string
+}
+
+func (v valuesValidator) Description(_ context.Context) string {
+	return fmt.Sprintf("validates %s record values", v.rtype)
+}
+
+func (v valuesValidator) MarkdownDescription(_ context.Context) string {
+	return v.Description(context.Background())
+}
+
+func (v valuesValidator) ValidateList(ctx context.Context, req validator.ListRequest, resp *validator.ListResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
+		return
+	}
+	for _, elem := range req.ConfigValue.Elements() {
+		strVal, ok := elem.(types.String)
+		if !ok || strVal.IsNull() || strVal.IsUnknown() {
+			continue
+		}
+		if err := models.ValidateValueString(v.rtype, strVal.ValueString()); err != nil {
+			resp.Diagnostics.AddAttributeError(
+				req.Path,
+				"Value Error",
+				fmt.Sprintf("Invalid value %q: %s", strVal.ValueString(), err),
+			)
+		}
+	}
+}
 
 // Ensure provider defined types fully satisfy framework interfaces.
 var _ resource.Resource = &RecordResource{}
@@ -72,10 +103,6 @@ func NewURLFWDRecordResource() resource.Resource {
 	return &RecordResource{rtype: &models.TYPE_URLFWD}
 }
 
-func NewRecordResource() resource.Resource {
-	return &RecordResource{rtype: nil}
-}
-
 // RecordResource defines the resource implementation.
 type RecordResource struct {
 	rtype  *models.RType
@@ -88,7 +115,6 @@ func (r *RecordResource) Metadata(ctx context.Context, req resource.MetadataRequ
 
 func (r *RecordResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		// This description is used by the documentation generator and the language server.
 		MarkdownDescription: r.rtype.String() + " record resource",
 
 		Attributes: map[string]schema.Attribute{
@@ -125,6 +151,9 @@ func (r *RecordResource) Schema(ctx context.Context, req resource.SchemaRequest,
 			"values": schema.ListAttribute{
 				ElementType: types.StringType,
 				Required:    true,
+				Validators: []validator.List{
+					valuesValidator{rtype: r.rtype.String()},
+				},
 			},
 			"ttl": schema.Int64Attribute{
 				Optional:            true,
@@ -175,7 +204,6 @@ func (r *RecordResource) Schema(ctx context.Context, req resource.SchemaRequest,
 }
 
 func (r *RecordResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	// Prevent panic if the provider has not been configured.
 	if req.ProviderData == nil {
 		return
 	}
@@ -183,13 +211,11 @@ func (r *RecordResource) Configure(ctx context.Context, req resource.ConfigureRe
 	tflog.Trace(ctx, "- Resource Configure")
 
 	client, ok := req.ProviderData.(*models.GitHubClient)
-
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Resource Configure Type",
 			fmt.Sprintf("Expected *http.Client, got: %T. Please report this issue to the provider developers.", req.ProviderData),
 		)
-
 		return
 	}
 
@@ -200,84 +226,79 @@ func (r *RecordResource) Create(ctx context.Context, req resource.CreateRequest,
 	tflog.Trace(ctx, "- Resource Create")
 	var data *RecordModel
 
-	// Read Terraform plan data into the model
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
-
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
+	// Add(+1) BEFORE Lock so all queued goroutines are counted.
+	// FlushIfLast owns the Add(-1) — do NOT defer it separately.
+	r.client.InFlight.Add(1)
 	r.client.Mutex.Lock()
 	defer r.client.Mutex.Unlock()
 
-	// Retry loop
-	var zone *models.Zone
-	var subdomain models.Subdomain
-	var record *models.Record
-	var err error
-
-	retryCounter := 0
-
-	for retryCounter <= r.client.RetryLimit {
-
-		zone, err = r.client.GetZone(data.Zone.ValueString(), data.Scope.ValueString())
-		if err != nil {
-			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Could not retrieve zone: %s", err.Error()))
-			return
-		}
-
-		subdomain, err = zone.CreateSubdomain(data.Name.ValueString())
-		if err != nil {
-			if !errors.Is(err, models.ErrSubdomainAlreadyExists) {
-				resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create subdomain, got error: %s", err))
-				return
-			}
-		}
-
-		record, err = subdomain.CreateType(r.rtype.String())
-		if err != nil {
-			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create type record, got error: %s", err))
-			return
-		}
-
-		resp.Diagnostics.Append(RecordFromDataModel(ctx, data, record)...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-
-		err = subdomain.UpdateYaml()
-		if err != nil {
-			resp.Diagnostics.AddError("Yaml Error", fmt.Sprintf("Unable to update subdomain in yaml, got error: %s", err))
-			return
-		}
-
-		err = r.client.SaveZone(zone, fmt.Sprintf("chore(%s): create %s record for %s", data.Zone.ValueString(), r.rtype.String(), data.Name.ValueString()))
-		if err != nil {
-			retryCounter++
-			if retryCounter <= r.client.RetryLimit {
-				resp.Diagnostics.AddWarning("Client Warning", fmt.Sprintf("Failed to save zone, going to fully retry: %s", err.Error()))
-				time.Sleep(time.Duration(retryCounter*5) * time.Second)
-				err = nil
-			}
-		} else {
-			break
-		}
-
+	zone, err := r.client.GetZone(data.Zone.ValueString(), data.Scope.ValueString())
+	if err != nil {
+		_ = r.client.FlushIfLast()
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Could not retrieve zone: %s", err.Error()))
+		return
 	}
 
+	subdomainCreated := false
+	subdomain, err := zone.CreateSubdomain(data.Name.ValueString())
 	if err != nil {
+		if !errors.Is(err, models.ErrSubdomainAlreadyExists) {
+			_ = r.client.FlushIfLast()
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create subdomain, got error: %s", err))
+			return
+		}
+	} else {
+		subdomainCreated = true
+	}
+
+	rollback := func() {
+		if subdomainCreated {
+			zone.DeleteSubdomain(subdomain.Name)
+		} else {
+			subdomain.DeleteType(r.rtype.String())
+		}
+	}
+
+	record, err := subdomain.CreateType(r.rtype.String())
+	if err != nil {
+		if subdomainCreated {
+			zone.DeleteSubdomain(subdomain.Name)
+		}
+		_ = r.client.FlushIfLast()
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create type record, got error: %s", err))
+		return
+	}
+
+	resp.Diagnostics.Append(RecordFromDataModel(ctx, data, record)...)
+	if resp.Diagnostics.HasError() {
+		rollback()
+		_ = r.client.FlushIfLast()
+		return
+	}
+
+	err = subdomain.UpdateYaml()
+	if err != nil {
+		rollback()
+		_ = r.client.FlushIfLast()
+		resp.Diagnostics.AddError("Yaml Error", fmt.Sprintf("Unable to update subdomain in yaml, got error: %s", err))
+		return
+	}
+
+	r.client.MarkZoneDirty(zone, fmt.Sprintf("chore(%s/%s): create %s record for %s", data.Scope.ValueString(), data.Zone.ValueString(), r.rtype.String(), data.Name.ValueString()))
+
+	// FlushIfLast does the InFlight.Add(-1) internally.
+	if err = r.client.FlushIfLast(); err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Could not save zone: %s", err.Error()))
 		return
 	}
 
-	// Set ID
 	data.Id = types.StringValue(fmt.Sprintf("%s %s %s", data.Scope.ValueString(), data.Zone.ValueString(), data.Name.ValueString()))
-
-	// Write logs using the tflog package
-	// Documentation: https://terraform.io/plugin/log
 	tflog.Trace(ctx, "created a resource")
-
-	// UpdateYaml data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
@@ -285,7 +306,6 @@ func (r *RecordResource) Read(ctx context.Context, req resource.ReadRequest, res
 	var data *RecordModel
 	tflog.Trace(ctx, "- Resource Read")
 
-	// Read Terraform prior state data into the model
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -323,8 +343,6 @@ func (r *RecordResource) Read(ctx context.Context, req resource.ReadRequest, res
 	}
 
 	resp.Diagnostics.Append(RecordToDataModel(ctx, data, record)...)
-
-	// UpdateYaml updated data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
@@ -333,174 +351,126 @@ func (r *RecordResource) Update(ctx context.Context, req resource.UpdateRequest,
 	var state *RecordModel
 	tflog.Trace(ctx, "- Resource Update")
 
-	r.client.Mutex.Lock()
-	defer r.client.Mutex.Unlock()
-
-	// Read Terraform plan data into the model
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Read Terraform state data into the model so it can be compared against plan
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Retry loop
-	var zone *models.Zone
-	var subdomain models.Subdomain
-	var record *models.Record
-	var err error
+	// Add(+1) BEFORE Lock so all queued goroutines are counted.
+	// FlushIfLast owns the Add(-1) — do NOT defer it separately.
+	r.client.InFlight.Add(1)
+	r.client.Mutex.Lock()
+	defer r.client.Mutex.Unlock()
 
-	retryCounter := 0
-
-	for retryCounter <= r.client.RetryLimit {
-
-		zone, err = r.client.GetZone(state.Zone.ValueString(), state.Scope.ValueString())
-		if err != nil {
-			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Could not retrieve zone: %s", err.Error()))
-			return
-		}
-
-		subdomain, err = zone.FindSubdomain(state.Name.ValueString())
-		if err != nil {
-			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to find subdomain, got error: %s", err))
-			return
-		}
-
-		record, err = subdomain.GetType(r.rtype.String())
-		if err != nil {
-			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to find type record, got error: %s", err))
-			return
-		}
-
-		resp.Diagnostics.Append(RecordFromDataModel(ctx, data, record)...)
-
-		err = subdomain.UpdateYaml()
-		if err != nil {
-			resp.Diagnostics.AddError("Yaml Error", fmt.Sprintf("Unable to update subdomain in yaml, got error: %s", err))
-			return
-		}
-
-		err = r.client.SaveZone(zone, fmt.Sprintf("chore(%s): update %s record for %s", data.Zone.ValueString(), r.rtype.String(), data.Name.ValueString()))
-		if err != nil {
-			retryCounter++
-			if retryCounter <= r.client.RetryLimit {
-				resp.Diagnostics.AddWarning("Client Warning", fmt.Sprintf("Failed to save zone, going to fully retry: %s", err.Error()))
-				time.Sleep(time.Duration(retryCounter*5) * time.Second)
-				err = nil
-			}
-		} else {
-			break
-		}
-	}
+	zone, err := r.client.GetZone(state.Zone.ValueString(), state.Scope.ValueString())
 	if err != nil {
+		_ = r.client.FlushIfLast()
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Could not retrieve zone: %s", err.Error()))
+		return
+	}
+
+	subdomain, err := zone.FindSubdomain(state.Name.ValueString())
+	if err != nil {
+		_ = r.client.FlushIfLast()
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to find subdomain, got error: %s", err))
+		return
+	}
+
+	record, err := subdomain.GetType(r.rtype.String())
+	if err != nil {
+		_ = r.client.FlushIfLast()
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to find type record, got error: %s", err))
+		return
+	}
+
+	resp.Diagnostics.Append(RecordFromDataModel(ctx, data, record)...)
+	if resp.Diagnostics.HasError() {
+		_ = r.client.FlushIfLast()
+		return
+	}
+
+	err = subdomain.UpdateYaml()
+	if err != nil {
+		_ = r.client.FlushIfLast()
+		resp.Diagnostics.AddError("Yaml Error", fmt.Sprintf("Unable to update subdomain in yaml, got error: %s", err))
+		return
+	}
+
+	r.client.MarkZoneDirty(zone, fmt.Sprintf("chore(%s/%s): update %s record for %s", data.Scope.ValueString(), data.Zone.ValueString(), r.rtype.String(), data.Name.ValueString()))
+
+	if err = r.client.FlushIfLast(); err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Could not save zone: %s", err.Error()))
 		return
 	}
 
-	// Set ID
 	data.Id = types.StringValue(fmt.Sprintf("%s %s %s", data.Scope.ValueString(), data.Zone.ValueString(), data.Name.ValueString()))
-
-	// If applicable, this is a great opportunity to initialize any necessary
-	// provider client data and make a call using it.
-	// httpResp, err := r.client.Do(httpReq)
-	// if err != nil {
-	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update record, got error: %s", err))
-	//     return
-	// }
-
-	// UpdateYaml updated data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
 func (r *RecordResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var data *RecordModel
 
-	// Read Terraform prior state data into the model
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
-
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
+	r.client.InFlight.Add(1)
 	r.client.Mutex.Lock()
 	defer r.client.Mutex.Unlock()
 
-	// Retry loop
-	var zone *models.Zone
-	var subdomain models.Subdomain
-	var err error
+	zone, err := r.client.GetZone(data.Zone.ValueString(), data.Scope.ValueString())
+	if err != nil {
+		_ = r.client.FlushIfLast()
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Could not retrieve zone: %s", err.Error()))
+		return
+	}
 
-	retryCounter := 0
+	subdomain, err := zone.FindSubdomain(data.Name.ValueString())
+	if err != nil {
+		_ = r.client.FlushIfLast()
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to find subdomain, got error: %s", err))
+		return
+	}
 
-	for retryCounter <= r.client.RetryLimit {
+	err = subdomain.DeleteType(r.rtype.String())
+	if err != nil {
+		_ = r.client.FlushIfLast()
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to find type record, got error: %s", err))
+		return
+	}
 
-		zone, err = r.client.GetZone(data.Zone.ValueString(), data.Scope.ValueString())
+	err = subdomain.FindAllType()
+	if err != nil {
+		_ = r.client.FlushIfLast()
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Could not refresh all types of subdomain: %s", err.Error()))
+		return
+	}
+
+	if len(subdomain.Types) == 0 {
+		err = zone.DeleteSubdomain(subdomain.Name)
 		if err != nil {
-			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Could not retrieve zone: %s", err.Error()))
+			_ = r.client.FlushIfLast()
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete subdomain, got error: %s", err))
 			return
-		}
-
-		subdomain, err = zone.FindSubdomain(data.Name.ValueString())
-		if err != nil {
-			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to find subdomain, got error: %s", err))
-			return
-		}
-
-		err = subdomain.DeleteType(r.rtype.String())
-		if err != nil {
-			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to find type record, got error: %s", err))
-			return
-		}
-
-		err = subdomain.FindAllType()
-		if err != nil {
-			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Could not refresh all types of subdmain: %s", err.Error()))
-			return
-		}
-
-		if len(subdomain.Types) == 0 {
-			//resp.Diagnostics.AddWarning("Client Warning", fmt.Sprintf("Trying to delete subdomain: %s / %s", subdomain.Name, data.Name))
-			err = zone.DeleteSubdomain(subdomain.Name)
-			if err != nil {
-				resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete subdomain, got error: %s", err))
-				return
-			}
-		}
-
-		err = r.client.SaveZone(zone, fmt.Sprintf("chore(%s): delete %s record for %s", data.Zone.ValueString(), r.rtype.String(), data.Name.ValueString()))
-		if err != nil {
-			retryCounter++
-			if retryCounter <= r.client.RetryLimit {
-				resp.Diagnostics.AddWarning("Client Warning", fmt.Sprintf("Failed to save zone , going to fully retry: %s", err.Error()))
-				time.Sleep(time.Duration(retryCounter*5) * time.Second)
-				err = nil
-			}
-		} else {
-			break
 		}
 	}
-	if err != nil {
+
+	r.client.MarkZoneDirty(zone, fmt.Sprintf("chore(%s/%s): delete %s record for %s", data.Scope.ValueString(), data.Zone.ValueString(), r.rtype.String(), data.Name.ValueString()))
+
+	if err = r.client.FlushIfLast(); err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Could not save zone: %s", err.Error()))
 		return
 	}
 
-	// Set ID
 	data.Id = types.StringNull()
-
-	// If applicable, this is a great opportunity to initialize any necessary
-	// provider client data and make a call using it.
-	// httpResp, err := r.client.Do(httpReq)
-	// if err != nil {
-	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete record, got error: %s", err))
-	//     return
-	// }
 }
 
 func (r *RecordResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
