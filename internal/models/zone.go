@@ -229,4 +229,3 @@ func (z Zone) WriteYamlToFile(filename string) error {
 	}
 	return nil
 }
-

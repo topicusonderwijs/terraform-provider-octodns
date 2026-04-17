@@ -258,16 +258,16 @@ func (r *RecordResource) Create(ctx context.Context, req resource.CreateRequest,
 
 	rollback := func() {
 		if subdomainCreated {
-			zone.DeleteSubdomain(subdomain.Name)
+			_ = zone.DeleteSubdomain(subdomain.Name)
 		} else {
-			subdomain.DeleteType(r.rtype.String())
+			_ = subdomain.DeleteType(r.rtype.String())
 		}
 	}
 
 	record, err := subdomain.CreateType(r.rtype.String())
 	if err != nil {
 		if subdomainCreated {
-			zone.DeleteSubdomain(subdomain.Name)
+			_ = zone.DeleteSubdomain(subdomain.Name)
 		}
 		_ = r.client.FlushIfLast()
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create type record, got error: %s", err))
