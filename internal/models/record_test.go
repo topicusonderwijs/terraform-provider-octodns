@@ -1021,6 +1021,49 @@ func TestRecord_Write_LOC(t *testing.T) {
 
 }
 
+func TestValidateValueString(t *testing.T) {
+
+	cases := []struct {
+		name    string
+		rtype   string
+		value   string
+		wantErr bool
+	}{
+		{"A valid", TYPE_A.String(), "192.168.0.1", false},
+		{"A invalid octet > 255", TYPE_A.String(), "192.168.0.256", true},
+		{"A invalid text", TYPE_A.String(), "not-an-ip", true},
+		{"A is not IPv6", TYPE_A.String(), "::1", true},
+
+		{"AAAA valid", TYPE_AAAA.String(), "::1", false},
+		{"AAAA valid full", TYPE_AAAA.String(), "2601:644:500:e210:62f8:1dff:feb8:947a", false},
+		{"AAAA invalid text", TYPE_AAAA.String(), "not-an-ip", true},
+		{"AAAA is not IPv4", TYPE_AAAA.String(), "192.168.0.1", true},
+
+		{"CNAME valid FQDN", TYPE_CNAME.String(), "unit.tests.", false},
+		{"CNAME missing trailing dot", TYPE_CNAME.String(), "unit.tests", true},
+
+		{"MX valid", TYPE_MX.String(), "10 mail.unit.tests.", false},
+		{"MX missing priority", TYPE_MX.String(), "mail.unit.tests.", true},
+
+		{"TXT accepts any string", TYPE_TXT.String(), "Bah bah black sheep", false},
+
+		{"SSHFP valid", TYPE_SSHFP.String(), "1 1 bf6b6825d2977c511a475bbefb88aad54a92ac73", false},
+		{"SSHFP too few fields", TYPE_SSHFP.String(), "1 1", true},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			err := ValidateValueString(c.rtype, c.value)
+			if c.wantErr && err == nil {
+				t.Errorf("expected error for %s=%q, got nil", c.rtype, c.value)
+			}
+			if !c.wantErr && err != nil {
+				t.Errorf("unexpected error for %s=%q: %s", c.rtype, c.value, err)
+			}
+		})
+	}
+}
+
 /**** Other Tests ****/
 // TestReadAllChecks check result of all tests.
 func TestRecord_CheckAllChecks(t *testing.T) {

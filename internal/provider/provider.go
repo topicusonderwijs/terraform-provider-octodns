@@ -6,7 +6,6 @@ package provider
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/url"
 	"os"
 	"os/exec"
@@ -17,6 +16,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/topicusonderwijs/terraform-provider-octodns/internal/models"
 )
 
@@ -159,7 +159,7 @@ func (p *OctodnsProvider) Configure(ctx context.Context, req provider.ConfigureR
 
 		// If still no token set try GitHub CLI command
 		if githubToken == "" {
-			githubToken, err = tokenFromGhCli("https://api.github.com/", true)
+			githubToken, err = tokenFromGhCli(ctx, "https://api.github.com/", true)
 		}
 
 		// No more sources for a token so error
@@ -289,7 +289,7 @@ func New(version string) func() provider.Provider {
 }
 
 // See https://github.com/integrations/terraform-provider-github/issues/1822
-func tokenFromGhCli(baseURL string, isGithubDotCom bool) (string, error) {
+func tokenFromGhCli(ctx context.Context, baseURL string, isGithubDotCom bool) (string, error) {
 	ghCliPath := os.Getenv("GH_PATH")
 	if ghCliPath == "" {
 		ghCliPath = "gh"
@@ -320,6 +320,6 @@ func tokenFromGhCli(baseURL string, isGithubDotCom bool) (string, error) {
 	// GH CLI is either not installed or there was no `gh auth login` command issued,
 	// which is fine. don't return the error to keep the flow going
 
-	log.Printf("[INFO] Using the token from GitHub CLI")
+	tflog.Info(ctx, "Using the token from GitHub CLI")
 	return strings.TrimSpace(string(out)), nil
 }

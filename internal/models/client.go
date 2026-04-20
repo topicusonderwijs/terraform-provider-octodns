@@ -3,13 +3,13 @@ package models
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/google/go-github/v55/github"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"golang.org/x/oauth2"
 )
 
@@ -153,7 +153,7 @@ func (g *GitHubClient) GetZone(zone, scope string) (*Zone, error) {
 
 // MarkZoneDirty queues a zone to be written. Must be called with Mutex held.
 func (g *GitHubClient) MarkZoneDirty(zone *Zone, comment string) {
-	log.Printf("[DEBUG] MarkZoneDirty: inFlight=%d", g.InFlight.Load())
+	tflog.Debug(context.Background(), "MarkZoneDirty", map[string]interface{}{"inFlight": g.InFlight.Load()})
 	sc, err := g.GetScope(zone.scope)
 	if err != nil {
 		return
@@ -196,7 +196,7 @@ func (g *GitHubClient) MarkZoneDirty(zone *Zone, comment string) {
 // Must be called with Mutex held.
 func (g *GitHubClient) FlushIfLast() error {
 	remaining := g.InFlight.Add(-1)
-	log.Printf("[DEBUG] FlushIfLast: remaining=%d, dirty=%d", remaining, len(g.dirtyZones))
+	tflog.Debug(context.Background(), "FlushIfLast", map[string]interface{}{"remaining": remaining, "dirty": len(g.dirtyZones)})
 	if remaining > 0 {
 		return nil
 	}
@@ -205,13 +205,13 @@ func (g *GitHubClient) FlushIfLast() error {
 	// before trying to Lock, so we'll see them after the sleep.
 	time.Sleep(g.BatchWindow)
 	if g.InFlight.Load() > 0 {
-		log.Printf("[DEBUG] FlushIfLast: new operations arrived during grace window, skipping flush")
+		tflog.Debug(context.Background(), "FlushIfLast: new operations arrived during grace window, skipping flush")
 		return nil
 	}
 	if len(g.dirtyZones) == 0 {
 		return nil
 	}
-	log.Printf("[DEBUG] FlushIfLast: flushing %d dirty zone(s)", len(g.dirtyZones))
+	tflog.Debug(context.Background(), "FlushIfLast: flushing dirty zones", map[string]interface{}{"count": len(g.dirtyZones)})
 	for filepath, zone := range g.dirtyZones {
 		comments := g.dirtyComments[filepath]
 		var comment string
