@@ -1,13 +1,14 @@
 package models
 
 import (
+	"context"
 	"fmt"
-	"log"
 	"net"
 	"regexp"
 	"strconv"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"gopkg.in/yaml.v3"
 )
 
@@ -76,7 +77,7 @@ func (r *Record) UpdateYaml() error {
 func (r *Record) ValuesAsString() []string {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Println("panic occurred:", err)
+			tflog.Error(context.Background(), "panic in ValuesAsString", map[string]interface{}{"error": fmt.Sprintf("%v", err)})
 		}
 	}()
 	var ret []string
