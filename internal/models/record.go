@@ -736,10 +736,7 @@ func (r *RecordValue) UnmarshalStringNS(value string) error {
 
 	return r.UnmarshalString(value)
 }
-func (r *RecordValue) UnmarshalStringPTR(value string) error {
-	return r.UnmarshalString(value)
 
-}
 func (r *RecordValue) UnmarshalStringSPF(value string) error {
 
 	if !strings.HasPrefix(value, "v=spf1") {
