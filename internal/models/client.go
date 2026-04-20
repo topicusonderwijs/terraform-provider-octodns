@@ -44,6 +44,10 @@ type GitHubClient struct {
 	dirtyZones    map[string]*Zone
 	dirtyComments map[string][]string
 	InFlight      atomic.Int64
+
+	// SaveZoneFn overrides the real GitHub API call when set. Tests use this
+	// to intercept commits without hitting the network. Leave nil in production.
+	SaveZoneFn func(zone *Zone, comment string) error
 }
 
 func NewGitHubClient(accessToken, owner, repo string, retryLimit int) (GitClient, error) {
@@ -251,23 +255,39 @@ func (g *GitHubClient) FlushIfLast() error {
 }
 
 func (g *GitHubClient) SaveZone(zone *Zone, comment string) error {
+	if comment == "" {
+		comment = fmt.Sprintf("chore(%s/%s): updating records", zone.scope, zone.name)
+	}
+
+	save := g.saveZoneViaAPI
+	if g.SaveZoneFn != nil {
+		save = g.SaveZoneFn
+	}
+	if err := save(zone, comment); err != nil {
+		return err
+	}
+
+	scope, err := g.GetScope(zone.scope)
+	if err != nil {
+		return err
+	}
+	delete(g.Zones, scope.CreateFilePath(zone.name))
+	return nil
+}
+
+func (g *GitHubClient) saveZoneViaAPI(zone *Zone, comment string) error {
 	content, err := zone.WriteYaml()
 	if err != nil {
 		return err
 	}
 
-	var scope Scope
-	scope, err = g.GetScope(zone.scope)
+	scope, err := g.GetScope(zone.scope)
 	if err != nil {
 		return err
 	}
 
 	filepath := scope.CreateFilePath(zone.name)
 	sha := zone.sha
-
-	if comment == "" {
-		comment = fmt.Sprintf("chore(%s/%s): updating records", zone.scope, zone.name)
-	}
 
 	var author *github.CommitAuthor = nil
 	if g.AuthorName != "" || g.AuthorEmail != "" {
@@ -294,11 +314,5 @@ func (g *GitHubClient) SaveZone(zone *Zone, comment string) error {
 	if response != nil && response.StatusCode == 409 {
 		return fmt.Errorf("409 error:`%v`", err)
 	}
-	if err != nil {
-		return err
-	}
-
-	delete(g.Zones, filepath)
-
-	return nil
+	return err
 }
