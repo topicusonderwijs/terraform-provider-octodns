@@ -388,14 +388,28 @@ func (r *RecordResource) Update(ctx context.Context, req resource.UpdateRequest,
 		return
 	}
 
+	oldValues := make([]models.RecordValue, len(record.Values))
+	copy(oldValues, record.Values)
+	oldTTL := record.TTL
+	oldOctodns := record.Octodns
+
+	restore := func() {
+		record.Values = oldValues
+		record.TTL = oldTTL
+		record.Octodns = oldOctodns
+		_ = subdomain.UpdateYaml()
+	}
+
 	resp.Diagnostics.Append(RecordFromDataModel(ctx, data, record)...)
 	if resp.Diagnostics.HasError() {
+		restore()
 		_ = r.client.FlushIfLast()
 		return
 	}
 
 	err = subdomain.UpdateYaml()
 	if err != nil {
+		restore()
 		_ = r.client.FlushIfLast()
 		resp.Diagnostics.AddError("Yaml Error", fmt.Sprintf("Unable to update subdomain in yaml, got error: %s", err))
 		return
