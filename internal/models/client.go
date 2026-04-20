@@ -144,10 +144,10 @@ func (g *GitHubClient) GetZone(zone, scope string) (*Zone, error) {
 	z.sha = fileContent.GetSHA()
 
 	err = z.ReadYaml([]byte(contents))
-	g.Zones[filepath] = &z
 	if err != nil {
 		return nil, err
 	}
+	g.Zones[filepath] = &z
 	return &z, nil
 }
 
