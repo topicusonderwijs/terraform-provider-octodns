@@ -1,5 +1,23 @@
 ## UNRELEASED (TBA)
 
+FEATURES:
+- Plan-time validation: invalid record values (e.g. malformed IPs) are now reported during `terraform plan` instead of at `apply`
+
+CHANGES:
+- Multiple record changes in a single `terraform apply` are batched into one GitHub commit per zone
+- Commit messages include the scope: `chore(scope/zone): ...`
+- Batched commits use a summary: `N changes (X creates, Y updates, Z deletes)` instead of concatenated individual messages
+
+FIXES:
+- Roll back in-memory zone state on error so partially-modified records no longer leak into GitHub
+- Zone cache is only populated after successful YAML parsing, preventing stale corrupted zones from persisting across operations
+- Propagate value validation errors from `RecordFromDataModel` instead of silently discarding invalid values
+
+INTERNAL:
+- Added unit tests for batching, rollback paths, and plan-time validation (coverage 67%→77%)
+- Replaced `log.Printf` with `tflog`
+- Removed dead code
+
 ## 1.1.4 (2025-11-14)
 
 FIXES:
