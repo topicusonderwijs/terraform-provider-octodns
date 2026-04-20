@@ -1,5 +1,7 @@
 ## UNRELEASED (TBA)
 
+## 1.2.0 (2026-04-20)
+
 FEATURES:
 - Plan-time validation: invalid record values (e.g. malformed IPs) are now reported during `terraform plan` instead of at `apply`
 
