@@ -25,6 +25,9 @@ func NewARecordDataSource() datasource.DataSource {
 func NewAAAARecordDataSource() datasource.DataSource {
 	return &RecordDataSource{rtype: &models.TYPE_AAAA}
 }
+func NewALIASRecordDataSource() datasource.DataSource {
+	return &RecordDataSource{rtype: &models.TYPE_ALIAS}
+}
 func NewCAARecordDataSource() datasource.DataSource {
 	return &RecordDataSource{rtype: &models.TYPE_CAA}
 }

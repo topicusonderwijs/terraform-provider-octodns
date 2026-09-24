@@ -261,7 +261,7 @@ func TestSubdomain_CreateRollbackExistingSubdomain(t *testing.T) {
 		t.Errorf("%s", err.Error())
 	}
 
-	// Apex ('') already has multiple types (A, SSHFP, NS, CAA); add MX and roll back
+	// Apex ('') already has multiple types (A, SSHFP, NS, CAA, ALIAS); add MX and roll back
 	sub, err := xZone.FindSubdomain("")
 	if err != nil {
 		t.Errorf("FindSubdomain throws an error: %s", err)

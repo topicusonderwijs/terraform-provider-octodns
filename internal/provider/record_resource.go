@@ -53,6 +53,31 @@ func (v valuesValidator) ValidateList(ctx context.Context, req validator.ListReq
 	}
 }
 
+type nameValidator struct {
+	rtype string
+}
+
+func (v nameValidator) Description(_ context.Context) string {
+	return fmt.Sprintf("validates %s record name", v.rtype)
+}
+
+func (v nameValidator) MarkdownDescription(_ context.Context) string {
+	return v.Description(context.Background())
+}
+
+func (v nameValidator) ValidateString(ctx context.Context, req validator.StringRequest, resp *validator.StringResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
+		return
+	}
+	if err := models.ValidateRecordName(v.rtype, req.ConfigValue.ValueString()); err != nil {
+		resp.Diagnostics.AddAttributeError(
+			req.Path,
+			"Name Error",
+			fmt.Sprintf("Invalid name %q: %s", req.ConfigValue.ValueString(), err),
+		)
+	}
+}
+
 // Ensure provider defined types fully satisfy framework interfaces.
 var _ resource.Resource = &RecordResource{}
 var _ resource.ResourceWithImportState = &RecordResource{}
@@ -62,6 +87,9 @@ func NewARecordResource() resource.Resource {
 }
 func NewAAAARecordResource() resource.Resource {
 	return &RecordResource{rtype: &models.TYPE_AAAA}
+}
+func NewALIASRecordResource() resource.Resource {
+	return &RecordResource{rtype: &models.TYPE_ALIAS}
 }
 func NewCAARecordResource() resource.Resource {
 	return &RecordResource{rtype: &models.TYPE_CAA}
@@ -137,6 +165,9 @@ func (r *RecordResource) Schema(ctx context.Context, req resource.SchemaRequest,
 			"name": schema.StringAttribute{
 				MarkdownDescription: "Record name. eq: <name>.example.com",
 				Required:            true,
+				Validators: []validator.String{
+					nameValidator{rtype: r.rtype.String()},
+				},
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},

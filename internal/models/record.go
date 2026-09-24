@@ -123,6 +123,8 @@ func (r *Record) AddValueFromString(valueString string) error {
 		err = value.UnmarshalStringA(valueString)
 	case TYPE_AAAA.String():
 		err = value.UnmarshalStringAAAA(valueString)
+	case TYPE_ALIAS.String():
+		err = value.UnmarshalStringFQDN(valueString)
 	case TYPE_CAA.String():
 		err = value.UnmarshalStringCAA(valueString)
 	case TYPE_CNAME.String():
@@ -161,6 +163,25 @@ func (r *Record) AddValueFromString(valueString string) error {
 func ValidateValueString(rtype, value string) error {
 	r := &Record{BaseRecord: BaseRecord{Type: rtype}}
 	return r.AddValueFromString(value)
+}
+
+// ValidateRecordName checks type specific restrictions on the record name,
+// matching the octodns CnameRootValidator and AliasRootValidator.
+func ValidateRecordName(rtype, name string) error {
+	isRoot := name == "" || name == "@"
+
+	switch rtype {
+	case TYPE_ALIAS.String():
+		if !isRoot {
+			return fmt.Errorf("non-root ALIAS not allowed, use \"@\" as name")
+		}
+	case TYPE_CNAME.String():
+		if isRoot {
+			return fmt.Errorf("root CNAME not allowed")
+		}
+	}
+
+	return nil
 }
 
 func (r *Record) AddType(record Record) error {

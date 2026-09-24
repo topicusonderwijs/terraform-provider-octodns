@@ -244,6 +244,7 @@ func (p *OctodnsProvider) Resources(ctx context.Context) []func() resource.Resou
 	return []func() resource.Resource{
 		NewARecordResource,
 		NewAAAARecordResource,
+		NewALIASRecordResource,
 		NewCAARecordResource,
 		NewCNAMERecordResource,
 		NewDNAMERecordResource,
@@ -264,6 +265,7 @@ func (p *OctodnsProvider) DataSources(ctx context.Context) []func() datasource.D
 	return []func() datasource.DataSource{
 		NewARecordDataSource,
 		NewAAAARecordDataSource,
+		NewALIASRecordDataSource,
 		NewCAARecordDataSource,
 		NewCNAMERecordDataSource,
 		NewDNAMERecordDataSource,

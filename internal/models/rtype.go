@@ -5,6 +5,7 @@ import "strings"
 var (
 	TYPE_A      RType = RType{value: "A", enabled: true}
 	TYPE_AAAA   RType = RType{value: "AAAA", enabled: true}
+	TYPE_ALIAS  RType = RType{value: "ALIAS", enabled: true}
 	TYPE_CAA    RType = RType{value: "CAA", enabled: true}
 	TYPE_CNAME  RType = RType{value: "CNAME", enabled: true}
 	TYPE_DNAME  RType = RType{value: "DNAME", enabled: true}
@@ -22,6 +23,7 @@ var (
 	TYPES = map[string]RType{
 		TYPE_A.String():      TYPE_A,
 		TYPE_AAAA.String():   TYPE_AAAA,
+		TYPE_ALIAS.String():  TYPE_ALIAS,
 		TYPE_CAA.String():    TYPE_CAA,
 		TYPE_CNAME.String():  TYPE_CNAME,
 		TYPE_DNAME.String():  TYPE_DNAME,

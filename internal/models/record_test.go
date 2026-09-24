@@ -269,6 +269,25 @@ func TestRecord_Write_AAAA(t *testing.T) {
 
 }
 
+// TestRecord_Read_ALIAS get an ALIAS record from unit.tests, checking
+// for a valid return value.
+func TestRecord_Read_ALIAS(t *testing.T) {
+	validateReadSimpleValues(t, "", TYPE_ALIAS, []string{"www." + fqdn})
+}
+
+// TestRecord_Write_ALIAS Create an ALIAS record, checking
+// for a valid return value.
+func TestRecord_Write_ALIAS(t *testing.T) {
+	var err error
+	_, err = validateWriteStringValues(t, "", TYPE_ALIAS, []string{fqdn})
+	if err != nil {
+		t.Errorf("Error: %s", err.Error())
+	}
+
+	wrongValues := []string{fqdnNoDot, ipv4, ipv6}
+	_, _ = validateWriteWrongStringValues(t, "", TYPE_ALIAS, wrongValues)
+}
+
 // TestRecord_Read_CNAME get an CNAME record from unit.tests, checking
 // for a valid return value.
 func TestRecord_Read_CNAME(t *testing.T) {
@@ -1059,6 +1078,39 @@ func TestValidateValueString(t *testing.T) {
 			}
 			if !c.wantErr && err != nil {
 				t.Errorf("unexpected error for %s=%q: %s", c.rtype, c.value, err)
+			}
+		})
+	}
+}
+
+func TestValidateRecordName(t *testing.T) {
+
+	cases := []struct {
+		name    string
+		rtype   string
+		value   string
+		wantErr bool
+	}{
+		{"A root", TYPE_A.String(), "@", false},
+		{"A subdomain", TYPE_A.String(), "www", false},
+
+		{"ALIAS root @", TYPE_ALIAS.String(), "@", false},
+		{"ALIAS root empty", TYPE_ALIAS.String(), "", false},
+		{"ALIAS subdomain", TYPE_ALIAS.String(), "www", true},
+
+		{"CNAME subdomain", TYPE_CNAME.String(), "www", false},
+		{"CNAME root @", TYPE_CNAME.String(), "@", true},
+		{"CNAME root empty", TYPE_CNAME.String(), "", true},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			err := ValidateRecordName(c.rtype, c.value)
+			if c.wantErr && err == nil {
+				t.Errorf("expected error for %s name=%q, got nil", c.rtype, c.value)
+			}
+			if !c.wantErr && err != nil {
+				t.Errorf("unexpected error for %s name=%q: %s", c.rtype, c.value, err)
 			}
 		})
 	}
