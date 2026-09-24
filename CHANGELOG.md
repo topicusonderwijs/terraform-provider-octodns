@@ -1,5 +1,14 @@
 ## UNRELEASED (TBA)
 
+FEATURES:
+- New resource and data source `octodns_alias_record` for ALIAS records
+
+FIXES:
+- Plan-time validation of record names: CNAME records at the zone root and ALIAS records outside the zone root are now rejected, matching the octodns validators
+- Provider configuration stops at the first configuration error instead of building a client from invalid settings
+- Errors from setting branch, author and the default scope are reported instead of discarded
+- Duplicate scope detection now treats an unnamed scope as `default`: two unnamed scopes, or an unnamed scope plus a scope named `default`, are rejected instead of silently overwriting each other
+
 ## 1.2.0 (2026-04-20)
 
 FEATURES:

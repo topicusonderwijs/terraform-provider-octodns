@@ -87,6 +87,9 @@ func (g *GitHubClient) SetAuthor(name, email string) error {
 }
 
 func (g *GitHubClient) AddScope(name, path, branch, ext string) error {
+	if name == "" {
+		name = DEFAULT_SCOPE
+	}
 	if _, ok := g.Scopes[name]; ok {
 		return fmt.Errorf("duplicate scope name found for name `%s`", name)
 	}

@@ -61,7 +61,15 @@ func (p *OctodnsProvider) Schema(ctx context.Context, req provider.SchemaRequest
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "**Warning**: This provider is still a work-in-progress so use at your own risk\n\n" +
 			"This provider allows you to modify your OctoDNS zone yaml files within a github repo,\n" +
-			"and can handle multiple zone directories within one git repo by defining multiple scopes\n\n" +
+			"and can handle multiple zone directories within one git repo by defining multiple scopes.\n\n" +
+			"**Note**: This provider does not sort records within zone files, so the YAML provider must be configured with `enforce_order` set to `false`:\n\n" +
+			"```yaml\n" +
+			"providers:\n" +
+			"  yamlgitops:\n" +
+			"    class: octodns.provider.yaml.YamlProvider\n" +
+			"    directory: /path/to/zones/\n" +
+			"    enforce_order: false\n" +
+			"```\n\n" +
 			"For github authentication you can use a personal access token (PAT) or use the [Github Cli](https://cli.github.com) to provide a token.\n" +
 			"If you don't have `gh` in your $PATH, you can point to the executable using the GH_PATH environment variable.   \n*Example*: ```GH_PATH=/opt/homebrew/bin/gh terraform plan```\n\n" +
 			"note: This provider can only manage records within existing zone files, it **cannot** manage/create zone files or alter the OctoDNS config.\n\n" +
@@ -198,6 +206,10 @@ func (p *OctodnsProvider) Configure(ctx context.Context, req provider.ConfigureR
 		)
 	}
 
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 	if data.GitBranch.IsNull() {
 		data.GitBranch = types.StringValue("main")
 	}
@@ -215,14 +227,21 @@ func (p *OctodnsProvider) Configure(ctx context.Context, req provider.ConfigureR
 			"While configuring the provider, the Github client failed to configure: "+
 				err.Error(),
 		)
+		return
 	}
 
-	_ = client.SetBranch(data.GitBranch.ValueString())
-	_ = client.SetAuthor(data.GitAuthorName.ValueString(), data.GitAuthorEmail.ValueString())
+	if err = client.SetBranch(data.GitBranch.ValueString()); err != nil {
+		resp.Diagnostics.AddError("Could not set branch", err.Error())
+	}
+	if err = client.SetAuthor(data.GitAuthorName.ValueString(), data.GitAuthorEmail.ValueString()); err != nil {
+		resp.Diagnostics.AddError("Could not set author", err.Error())
+	}
 
 	if len(data.Scopes) == 0 {
 		// Add scope will add the default values for "" parameters
-		_ = client.AddScope("", "", "", "")
+		if err = client.AddScope("", "", "", ""); err != nil {
+			resp.Diagnostics.AddError("Could not add scope", err.Error())
+		}
 	} else {
 		for _, v := range data.Scopes {
 

@@ -215,3 +215,40 @@ func TestFlushIfLast_EmptyDirtyNoOp(t *testing.T) {
 		t.Fatalf("expected 0 commits when nothing dirty, got %d", len(*commits))
 	}
 }
+
+func TestAddScope_Duplicates(t *testing.T) {
+
+	cases := []struct {
+		name    string
+		scopes  []string
+		wantErr bool
+	}{
+		{"single empty name", []string{""}, false},
+		{"two different names", []string{"prod", "staging"}, false},
+		{"empty and named", []string{"", "staging"}, false},
+		{"same name twice", []string{"prod", "prod"}, true},
+		{"empty name twice", []string{"", ""}, true},
+		{"empty name and default", []string{"", DEFAULT_SCOPE}, true},
+		{"default and empty name", []string{DEFAULT_SCOPE, ""}, true},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			client := &GitHubClient{Scopes: map[string]Scope{}}
+
+			var err error
+			for _, s := range c.scopes {
+				if err = client.AddScope(s, "", "", ""); err != nil {
+					break
+				}
+			}
+
+			if c.wantErr && err == nil {
+				t.Errorf("expected duplicate scope error for %q, got nil", c.scopes)
+			}
+			if !c.wantErr && err != nil {
+				t.Errorf("unexpected error for %q: %s", c.scopes, err)
+			}
+		})
+	}
+}
