@@ -408,3 +408,20 @@ values:
 		})
 	}
 }
+
+func TestSubdomain_DeleteTypeNotFound(t *testing.T) {
+
+	xZone, err := zoneFromYaml(UNIT_FILE_DEFAULT)
+	if err != nil {
+		t.Fatalf("%s", err.Error())
+	}
+
+	sub, err := xZone.FindSubdomain("cname")
+	if err != nil {
+		t.Fatalf("FindSubdomain throws an error: %s", err)
+	}
+
+	if err = sub.DeleteType(TYPE_TXT.String()); !errors.Is(err, ErrTypeNotFound) {
+		t.Errorf("DeleteType of missing type: got %v, want ErrTypeNotFound", err)
+	}
+}

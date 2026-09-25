@@ -61,6 +61,12 @@ func (z *Zone) CreateSubdomain(subdomain string) (sub Subdomain, err error) {
 	keyNode.Value = subdomain
 	contentNode := yaml.Node{Kind: yaml.SequenceNode}
 
+	// An empty zone is usually written as {}, switch to block style so new
+	// records are not written as flow style yaml
+	if len(z.doc.Content[0].Content) == 0 {
+		z.doc.Content[0].Style &^= yaml.FlowStyle
+	}
+
 	z.doc.Content[0].Content = append(z.doc.Content[0].Content, &keyNode, &contentNode)
 
 	sub = Subdomain{
@@ -138,6 +144,11 @@ func (z *Zone) FindSubdomain(subdomain string) (record Subdomain, err error) {
 	}
 
 	if len(z.doc.Content[0].Content) == 0 {
+		// An empty zone ({}) simply does not contain the subdomain
+		if z.doc.Content[0].Kind == yaml.MappingNode {
+			err = ErrSubdomainNotFound
+			return
+		}
 		err = fmt.Errorf("error: %s", z.doc.Content[0].Value)
 		return
 	}

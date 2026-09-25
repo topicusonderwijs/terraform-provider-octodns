@@ -45,6 +45,8 @@ type OctodnsProviderModel struct {
 	GitAuthorName  types.String `tfsdk:"author_name"`
 	GitAuthorEmail types.String `tfsdk:"author_email"`
 
+	ErrorOnMissingRecords types.Bool `tfsdk:"error_on_missing_records"`
+
 	Scopes []struct {
 		Name   types.String `tfsdk:"name"`
 		Path   types.String `tfsdk:"path"`
@@ -107,6 +109,16 @@ func (p *OctodnsProvider) Schema(ctx context.Context, req provider.SchemaRequest
 			"author_email": schema.StringAttribute{
 				MarkdownDescription: "The Author email used in commits, defaults to owner of github token",
 				Optional:            true,
+			},
+			"error_on_missing_records": schema.BoolAttribute{
+				MarkdownDescription: "Backwards compatibility option that will be removed in version 2.0.0. " +
+					"Fail with an error when a record in the Terraform state no longer exists in the zone file. " +
+					"Defaults to `false`: a missing record is removed from the state with a warning, so it is recreated on the next apply, " +
+					"and destroying a record that is already missing succeeds. Set to `true` to restore the behaviour of provider versions up to 1.2.0.",
+				Optional: true,
+				DeprecationMessage: "error_on_missing_records is a backwards compatibility option for the behaviour of provider versions up to 1.2.0 " +
+					"and will be removed in version 2.0.0. Records that no longer exist in the zone file are removed from the state and recreated " +
+					"on the next apply. Remove this attribute from the provider configuration.",
 			},
 		},
 		Blocks: map[string]schema.Block{
@@ -235,6 +247,9 @@ func (p *OctodnsProvider) Configure(ctx context.Context, req provider.ConfigureR
 	}
 	if err = client.SetAuthor(data.GitAuthorName.ValueString(), data.GitAuthorEmail.ValueString()); err != nil {
 		resp.Diagnostics.AddError("Could not set author", err.Error())
+	}
+	if err = client.SetErrorOnMissingRecords(data.ErrorOnMissingRecords.ValueBool()); err != nil {
+		resp.Diagnostics.AddError("Could not set error_on_missing_records", err.Error())
 	}
 
 	if len(data.Scopes) == 0 {

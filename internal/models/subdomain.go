@@ -188,7 +188,7 @@ func (r *Subdomain) DeleteType(rtype string) (err error) {
 		}
 	}
 
-	return fmt.Errorf("type '%s' not found", rtype)
+	return fmt.Errorf("type '%s' not found: %w", rtype, ErrTypeNotFound)
 
 }
 

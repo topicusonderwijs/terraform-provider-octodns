@@ -142,6 +142,25 @@ func (r *RecordResource) Metadata(ctx context.Context, req resource.MetadataRequ
 	resp.TypeName = req.ProviderTypeName + "_" + r.rtype.LowerString() + "_record"
 }
 
+// isMissingRecordError reports whether err means the record no longer exists
+// in the zone file.
+func isMissingRecordError(err error) bool {
+	return errors.Is(err, models.ErrSubdomainNotFound) || errors.Is(err, models.ErrTypeNotFound)
+}
+
+// ignoreMissingRecord reports whether a missing record should be treated as
+// removed instead of failing, which is the default unless the provider sets
+// error_on_missing_records.
+func (r *RecordResource) ignoreMissingRecord(err error) bool {
+	return isMissingRecordError(err) && !r.client.ErrorOnMissingRecords
+}
+
+// missingRecordMessage describes a record that no longer exists in the zone file.
+func missingRecordMessage(rtype string, data *RecordModel, consequence string) string {
+	return fmt.Sprintf("The %s record %q was not found in zone %q (scope %q). %s",
+		rtype, data.Name.ValueString(), data.Zone.ValueString(), data.Scope.ValueString(), consequence)
+}
+
 // coexistenceWarning builds a single warning message for a record that was
 // created next to record types it cannot coexist with according to octodns.
 func coexistenceWarning(rtype, name, zone string, conflicts []string) string {
@@ -426,12 +445,24 @@ func (r *RecordResource) Read(ctx context.Context, req resource.ReadRequest, res
 
 	subdomain, err := zone.FindSubdomain(data.Name.ValueString())
 	if err != nil {
+		if r.ignoreMissingRecord(err) {
+			resp.Diagnostics.AddWarning("Record not found", missingRecordMessage(r.rtype.String(), data,
+				"It was removed outside of Terraform and has been removed from the state, so it will be recreated on the next apply."))
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read subdomain %s, got error: %s", data.Name.ValueString(), err))
 		return
 	}
 
 	record, err := subdomain.GetType(r.rtype.String())
 	if err != nil {
+		if r.ignoreMissingRecord(err) {
+			resp.Diagnostics.AddWarning("Record not found", missingRecordMessage(r.rtype.String(), data,
+				"It was removed outside of Terraform and has been removed from the state, so it will be recreated on the next apply."))
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read type %s, got error: %s", r.rtype.String(), err))
 		return
 	}
@@ -542,6 +573,11 @@ func (r *RecordResource) Delete(ctx context.Context, req resource.DeleteRequest,
 	subdomain, err := zone.FindSubdomain(data.Name.ValueString())
 	if err != nil {
 		_ = r.client.FlushIfLast()
+		if r.ignoreMissingRecord(err) {
+			resp.Diagnostics.AddWarning("Record already removed", missingRecordMessage(r.rtype.String(), data,
+				"There is nothing to delete, the record is removed from the state."))
+			return
+		}
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to find subdomain, got error: %s", err))
 		return
 	}
@@ -549,6 +585,11 @@ func (r *RecordResource) Delete(ctx context.Context, req resource.DeleteRequest,
 	err = subdomain.DeleteType(r.rtype.String())
 	if err != nil {
 		_ = r.client.FlushIfLast()
+		if r.ignoreMissingRecord(err) {
+			resp.Diagnostics.AddWarning("Record already removed", missingRecordMessage(r.rtype.String(), data,
+				"There is nothing to delete, the record is removed from the state."))
+			return
+		}
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to find type record, got error: %s", err))
 		return
 	}

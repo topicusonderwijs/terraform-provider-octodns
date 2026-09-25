@@ -4,8 +4,12 @@
 package provider
 
 import (
+	"errors"
+	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/topicusonderwijs/terraform-provider-octodns/internal/models"
 )
 
 func TestCoexistenceWarning(t *testing.T) {
@@ -47,5 +51,41 @@ func TestCoexistenceWarning(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestIsMissingRecordError(t *testing.T) {
+
+	cases := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"subdomain not found", models.ErrSubdomainNotFound, true},
+		{"type not found", models.ErrTypeNotFound, true},
+		{"wrapped type not found", fmt.Errorf("type 'A' not found: %w", models.ErrTypeNotFound), true},
+		{"other error", errors.New("zone.doc is not a document node"), false},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := isMissingRecordError(c.err); got != c.want {
+				t.Errorf("isMissingRecordError(%v) = %v, want %v", c.err, got, c.want)
+			}
+		})
+	}
+}
+
+func TestIgnoreMissingRecord(t *testing.T) {
+
+	for _, errorOnMissing := range []bool{false, true} {
+		r := &RecordResource{client: &models.GitHubClient{ErrorOnMissingRecords: errorOnMissing}}
+
+		if got := r.ignoreMissingRecord(models.ErrSubdomainNotFound); got == errorOnMissing {
+			t.Errorf("error_on_missing_records=%v: ignoreMissingRecord(ErrSubdomainNotFound) = %v", errorOnMissing, got)
+		}
+		if r.ignoreMissingRecord(errors.New("other error")) {
+			t.Errorf("error_on_missing_records=%v: other errors must never be ignored", errorOnMissing)
+		}
 	}
 }

@@ -25,6 +25,7 @@ type GitClient interface {
 	GetZone(zone, scope string) (*Zone, error)
 	SetBranch(branch string) error
 	SetAuthor(name, email string) error
+	SetErrorOnMissingRecords(enabled bool) error
 	MarkZoneDirty(zone *Zone, comment string)
 	FlushIfLast() error
 }
@@ -44,6 +45,10 @@ type GitHubClient struct {
 	dirtyZones    map[string]*Zone
 	dirtyComments map[string][]string
 	InFlight      atomic.Int64
+
+	// ErrorOnMissingRecords restores the legacy behaviour of failing when a
+	// record in the state no longer exists in the zone file.
+	ErrorOnMissingRecords bool
 
 	// SaveZoneFn overrides the real GitHub API call when set. Tests use this
 	// to intercept commits without hitting the network. Leave nil in production.
@@ -83,6 +88,11 @@ func (g *GitHubClient) SetBranch(branch string) error {
 func (g *GitHubClient) SetAuthor(name, email string) error {
 	g.AuthorName = name
 	g.AuthorEmail = email
+	return nil
+}
+
+func (g *GitHubClient) SetErrorOnMissingRecords(enabled bool) error {
+	g.ErrorOnMissingRecords = enabled
 	return nil
 }
 

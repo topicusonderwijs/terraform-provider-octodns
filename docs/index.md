@@ -88,6 +88,7 @@ provider "octodns" {
 - `author_email` (String) The Author email used in commits, defaults to owner of github token
 - `author_name` (String) The Author name used in commits, defaults to owner of github token
 - `branch` (String) The git branch to use, defaults to main
+- `error_on_missing_records` (Boolean, Deprecated) Backwards compatibility option that will be removed in version 2.0.0. Fail with an error when a record in the Terraform state no longer exists in the zone file. Defaults to `false`: a missing record is removed from the state with a warning, so it is recreated on the next apply, and destroying a record that is already missing succeeds. Set to `true` to restore the behaviour of provider versions up to 1.2.0.
 - `git_provider` (String) Git provider, only accepted/supported value for now is github
 - `github_access_token` (String, Sensitive) Github personal access token, if not set the environment variable `GITHUB_TOKEN` or the `Github Cli (gh)` command will be used to get a token
 - `github_retry_limit` (Number) How many times to retry updating files in github

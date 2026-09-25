@@ -209,3 +209,43 @@ func TestZone_CreateSubdomain(t *testing.T) {
 	}
 
 }
+
+func TestZone_EmptyZone(t *testing.T) {
+
+	for _, content := range []string{"--- {}\n", "---\n{}\n"} {
+		t.Run(content, func(t *testing.T) {
+			testZone := Zone{}
+			if err := testZone.ReadYaml([]byte(content)); err != nil {
+				t.Fatalf("ReadYaml error: %s", err.Error())
+			}
+
+			if _, err := testZone.FindSubdomain("www"); !errors.Is(err, ErrSubdomainNotFound) {
+				t.Errorf("FindSubdomain on empty zone: got %v, want ErrSubdomainNotFound", err)
+			}
+
+			s, err := testZone.CreateSubdomain("www")
+			if err != nil {
+				t.Fatalf("CreateSubdomain error: %s", err.Error())
+			}
+			rt, err := s.CreateType(TYPE_A.String())
+			if err != nil {
+				t.Fatalf("CreateType error: %s", err.Error())
+			}
+			rt.TTL = 300
+			if err = rt.AddValueFromString("1.2.3.4"); err != nil {
+				t.Fatalf("AddValueFromString error: %s", err.Error())
+			}
+			if err = s.UpdateYaml(); err != nil {
+				t.Fatalf("UpdateYaml error: %s", err.Error())
+			}
+
+			out, err := testZone.WriteYaml()
+			if err != nil {
+				t.Fatalf("WriteYaml error: %s", err.Error())
+			}
+			if bytes.HasPrefix(bytes.TrimSpace(out), []byte("{")) {
+				t.Errorf("zone written in flow style:\n%s", out)
+			}
+		})
+	}
+}

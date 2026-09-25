@@ -1,5 +1,10 @@
 ## UNRELEASED (TBA)
 
+BEHAVIOUR CHANGES:
+- Fix: records that exist in the Terraform state but no longer exist in the zone file (removed outside of Terraform, including from an empty zone `{}`) no longer fail `plan`/`apply` with a `Client Error`. They are removed from the state with a `Record not found` warning and recreated on the next apply, as recommended by the Terraform Plugin Framework.
+- Fix: destroying a record that no longer exists in the zone file now succeeds with a `Record already removed` warning instead of failing.
+- If you depend on the previous behaviour, set `error_on_missing_records = true` in the provider configuration. This option is deprecated on introduction and will be removed in version 2.0.0.
+
 FEATURES:
 - New resource and data source `octodns_alias_record` for ALIAS records
 - Apply-time warning when a record is created next to record types it cannot coexist with according to octodns (CNAME next to any other type, ALIAS next to A or AAAA). All conflicting types are reported in a single warning. The record is still written.
@@ -12,6 +17,10 @@ FIXES:
 - Provider configuration stops at the first configuration error instead of building a client from invalid settings
 - Errors from setting branch, author and the default scope are reported instead of discarded
 - Duplicate scope detection now treats an unnamed scope as `default`: two unnamed scopes, or an unnamed scope plus a scope named `default`, are rejected instead of silently overwriting each other
+- Creating a record in an empty zone file (`{}`) no longer fails, and the zone is written in block style instead of flow style
+
+DEPRECATIONS:
+- Provider attribute `error_on_missing_records`: backwards compatibility option for the missing record behaviour of versions up to 1.2.0, will be removed in version 2.0.0
 
 ## 1.2.0 (2026-04-20)
 
