@@ -1,5 +1,7 @@
 ## UNRELEASED (TBA)
 
+## 1.3.0 (2026-09-25)
+
 BEHAVIOUR CHANGES:
 - Fix: records that exist in the Terraform state but no longer exist in the zone file (removed outside of Terraform, including from an empty zone `{}`) no longer fail `plan`/`apply` with a `Client Error`. They are removed from the state with a `Record not found` warning and recreated on the next apply, as recommended by the Terraform Plugin Framework.
 - Fix: destroying a record that no longer exists in the zone file now succeeds with a `Record already removed` warning instead of failing.
