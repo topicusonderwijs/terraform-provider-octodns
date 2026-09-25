@@ -4,11 +4,14 @@ page_title: "octodns_cname_record Resource - terraform-provider-octodns"
 subcategory: ""
 description: |-
   CNAME record resource
+  Warning: CNAME records are not allowed at the zone root and cannot coexist with any other record type on the same name. The zone root is checked at plan time, but the provider does not prevent other record types on the same name yet: creating a CNAME record on a name that already has other records, or adding other records next to a CNAME record, results in an invalid zone file that octodns rejects during validation or sync. When the conflict is detected during apply, the record is still written and a warning is shown. Records created later in the same apply are not detected.
 ---
 
 # octodns_cname_record (Resource)
 
 CNAME record resource
+
+**Warning**: CNAME records are not allowed at the zone root and cannot coexist with any other record type on the same name. The zone root is checked at plan time, but the provider does not prevent other record types on the same name yet: creating a CNAME record on a name that already has other records, or adding other records next to a CNAME record, results in an invalid zone file that octodns rejects during validation or sync. When the conflict is detected during apply, the record is still written and a warning is shown. Records created later in the same apply are not detected.
 
 ## Example Usage
 

@@ -4,11 +4,14 @@ page_title: "octodns_alias_record Resource - terraform-provider-octodns"
 subcategory: ""
 description: |-
   ALIAS record resource
+  Warning: ALIAS records are only allowed at the zone root (name = "@") and cannot coexist with A or AAAA records on the same name. The provider does not prevent this yet: creating an ALIAS record at a zone root that already has A or AAAA records, or adding A or AAAA records next to an ALIAS record, results in an invalid zone file that octodns rejects during validation or sync. When the conflict is detected during apply, the record is still written and a warning is shown. Records created later in the same apply are not detected.
 ---
 
 # octodns_alias_record (Resource)
 
 ALIAS record resource
+
+**Warning**: ALIAS records are only allowed at the zone root (`name = "@"`) and cannot coexist with A or AAAA records on the same name. The provider does not prevent this yet: creating an ALIAS record at a zone root that already has A or AAAA records, or adding A or AAAA records next to an ALIAS record, results in an invalid zone file that octodns rejects during validation or sync. When the conflict is detected during apply, the record is still written and a warning is shown. Records created later in the same apply are not detected.
 
 ## Example Usage
 

@@ -3,7 +3,10 @@ package models
 import (
 	"bytes"
 	"errors"
+	"slices"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 func TestSubdomain_UpdateYaml(t *testing.T) {
@@ -337,4 +340,71 @@ func TestSubdomain_CreateType(t *testing.T) {
 		t.Errorf("CreateType should throw an error for existing type")
 	}
 
+}
+
+func TestSubdomain_ConflictingTypes(t *testing.T) {
+
+	subdomainFromYaml := func(t *testing.T, content string) Subdomain {
+		t.Helper()
+		var doc yaml.Node
+		if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
+			t.Fatalf("yaml.Unmarshal throws an error: %s", err)
+		}
+		sub := Subdomain{}
+		sub.SetYaml(&yaml.Node{Kind: yaml.ScalarNode, Value: "test"}, doc.Content[0])
+		return sub
+	}
+
+	addressRecords := `
+- type: A
+  value: 1.2.3.4
+- type: AAAA
+  value: 2001:db8::1
+- type: TXT
+  value: some text
+`
+	aliasRecord := `
+type: ALIAS
+value: www.unit.tests.
+`
+	cnameRecord := `
+type: CNAME
+value: www.unit.tests.
+`
+	unsupportedRecord := `
+type: HTTPS
+values:
+  - svcpriority: 1
+    targetname: .
+`
+
+	cases := []struct {
+		name    string
+		content string
+		rtype   string
+		want    []string
+	}{
+		{"ALIAS next to A and AAAA", addressRecords, TYPE_ALIAS.String(), []string{"A", "AAAA"}},
+		{"CNAME next to other records", addressRecords, TYPE_CNAME.String(), []string{"A", "AAAA", "TXT"}},
+		{"MX next to A, AAAA and TXT", addressRecords, TYPE_MX.String(), nil},
+		{"A next to ALIAS", aliasRecord, TYPE_A.String(), []string{"ALIAS"}},
+		{"AAAA next to ALIAS", aliasRecord, TYPE_AAAA.String(), []string{"ALIAS"}},
+		{"TXT next to ALIAS", aliasRecord, TYPE_TXT.String(), nil},
+		{"TXT next to CNAME", cnameRecord, TYPE_TXT.String(), []string{"CNAME"}},
+		{"CNAME next to CNAME", cnameRecord, TYPE_CNAME.String(), nil},
+		{"CNAME next to unsupported type", unsupportedRecord, TYPE_CNAME.String(), []string{"HTTPS"}},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			sub := subdomainFromYaml(t, c.content)
+			got := sub.ConflictingTypes(c.rtype)
+			if !slices.Equal(got, c.want) {
+				t.Errorf("ConflictingTypes(%q) = %q, want %q", c.rtype, got, c.want)
+			}
+			if len(sub.Types) != 0 {
+				t.Errorf("ConflictingTypes must not load records into Types, got %d", len(sub.Types))
+			}
+		})
+	}
 }

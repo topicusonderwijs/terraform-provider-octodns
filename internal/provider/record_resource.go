@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -141,9 +142,59 @@ func (r *RecordResource) Metadata(ctx context.Context, req resource.MetadataRequ
 	resp.TypeName = req.ProviderTypeName + "_" + r.rtype.LowerString() + "_record"
 }
 
+// coexistenceWarning builds a single warning message for a record that was
+// created next to record types it cannot coexist with according to octodns.
+func coexistenceWarning(rtype, name, zone string, conflicts []string) string {
+	var rules []string
+
+	if rtype == models.TYPE_CNAME.String() || slices.Contains(conflicts, models.TYPE_CNAME.String()) {
+		rules = append(rules, "CNAME records cannot coexist with other records")
+	}
+	if rtype == models.TYPE_ALIAS.String() || slices.Contains(conflicts, models.TYPE_ALIAS.String()) {
+		rules = append(rules, "ALIAS records cannot coexist with A or AAAA records")
+	}
+
+	list := conflicts[0]
+	if len(conflicts) > 1 {
+		list = strings.Join(conflicts[:len(conflicts)-1], ", ") + " and " + conflicts[len(conflicts)-1]
+	}
+
+	return fmt.Sprintf(
+		"The %s record %q in zone %q was created next to existing %s record(s) on the same name. "+
+			"octodns does not allow this (%s), so the zone will fail octodns validation until the conflict is resolved.",
+		rtype, name, zone, list, strings.Join(rules, "; "),
+	)
+}
+
+// resourceDescription returns the resource description, including type specific
+// warnings about octodns coexistence rules that the provider does not enforce yet.
+func resourceDescription(rtype models.RType) string {
+	description := rtype.String() + " record resource"
+
+	switch rtype.String() {
+	case models.TYPE_ALIAS.String():
+		description += "\n\n**Warning**: ALIAS records are only allowed at the zone root (`name = \"@\"`) and " +
+			"cannot coexist with A or AAAA records on the same name. The provider does not prevent this yet: " +
+			"creating an ALIAS record at a zone root that already has A or AAAA records, or adding A or AAAA " +
+			"records next to an ALIAS record, results in an invalid zone file that octodns rejects during " +
+			"validation or sync. When the conflict is detected during apply, the record is still written and " +
+			"a warning is shown. Records created later in the same apply are not detected."
+	case models.TYPE_CNAME.String():
+		description += "\n\n**Warning**: CNAME records are not allowed at the zone root and cannot coexist with " +
+			"any other record type on the same name. The zone root is checked at plan time, but the provider " +
+			"does not prevent other record types on the same name yet: creating a CNAME record on a name that " +
+			"already has other records, or adding other records next to a CNAME record, results in an invalid " +
+			"zone file that octodns rejects during validation or sync. When the conflict is detected during " +
+			"apply, the record is still written and a warning is shown. Records created later in the same " +
+			"apply are not detected."
+	}
+
+	return description
+}
+
 func (r *RecordResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: r.rtype.String() + " record resource",
+		MarkdownDescription: resourceDescription(*r.rtype),
 
 		Attributes: map[string]schema.Attribute{
 			"zone": schema.StringAttribute{
@@ -287,6 +338,11 @@ func (r *RecordResource) Create(ctx context.Context, req resource.CreateRequest,
 		subdomainCreated = true
 	}
 
+	var conflicts []string
+	if !subdomainCreated {
+		conflicts = subdomain.ConflictingTypes(r.rtype.String())
+	}
+
 	rollback := func() {
 		if subdomainCreated {
 			_ = zone.DeleteSubdomain(subdomain.Name)
@@ -326,6 +382,13 @@ func (r *RecordResource) Create(ctx context.Context, req resource.CreateRequest,
 	if err = r.client.FlushIfLast(); err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Could not save zone: %s", err.Error()))
 		return
+	}
+
+	if len(conflicts) > 0 {
+		resp.Diagnostics.AddWarning(
+			"Record type conflict detected",
+			coexistenceWarning(r.rtype.String(), data.Name.ValueString(), data.Zone.ValueString(), conflicts),
+		)
 	}
 
 	data.Id = types.StringValue(fmt.Sprintf("%s %s %s", data.Scope.ValueString(), data.Zone.ValueString(), data.Name.ValueString()))

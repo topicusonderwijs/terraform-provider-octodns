@@ -2,6 +2,10 @@
 
 FEATURES:
 - New resource and data source `octodns_alias_record` for ALIAS records
+- Apply-time warning when a record is created next to record types it cannot coexist with according to octodns (CNAME next to any other type, ALIAS next to A or AAAA). All conflicting types are reported in a single warning. The record is still written.
+
+NOTES:
+- The ALIAS and CNAME resource documentation now describes the octodns coexistence rules and the current provider behaviour
 
 FIXES:
 - Plan-time validation of record names: CNAME records at the zone root and ALIAS records outside the zone root are now rejected, matching the octodns validators

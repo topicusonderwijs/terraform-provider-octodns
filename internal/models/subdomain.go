@@ -192,6 +192,69 @@ func (r *Subdomain) DeleteType(rtype string) (err error) {
 
 }
 
+// existingTypes returns the record types present in the yaml of this subdomain,
+// including types the provider does not support. It only reads the yaml nodes
+// and does not load records into r.Types.
+func (r *Subdomain) existingTypes() []string {
+
+	typeOf := func(root *yaml.Node) string {
+		for i := 0; i+1 < len(root.Content); i += 2 {
+			if root.Content[i].Value == "type" {
+				return strings.ToUpper(root.Content[i+1].Value)
+			}
+		}
+		return ""
+	}
+
+	var found []string
+
+	switch r.ContentNode.Kind {
+	case yaml.MappingNode:
+		if t := typeOf(r.ContentNode); t != "" {
+			found = append(found, t)
+		}
+	case yaml.SequenceNode:
+		for _, node := range r.ContentNode.Content {
+			if t := typeOf(node); t != "" {
+				found = append(found, t)
+			}
+		}
+	}
+
+	return found
+}
+
+// typesConflict reports whether records of type a and b cannot coexist on the
+// same name, following the octodns CnameCoexistenceValidator.
+func typesConflict(a, b string) bool {
+	if a == b {
+		return false
+	}
+	if a == TYPE_CNAME.String() || b == TYPE_CNAME.String() {
+		return true
+	}
+	isAddress := func(t string) bool {
+		return t == TYPE_A.String() || t == TYPE_AAAA.String()
+	}
+	return (a == TYPE_ALIAS.String() && isAddress(b)) || (b == TYPE_ALIAS.String() && isAddress(a))
+}
+
+// ConflictingTypes returns the sorted record types already present on this
+// subdomain that cannot coexist with a record of type rtype.
+func (r *Subdomain) ConflictingTypes(rtype string) []string {
+	rtype = strings.ToUpper(strings.TrimSpace(rtype))
+
+	var conflicts []string
+	for _, t := range r.existingTypes() {
+		if typesConflict(rtype, t) && !slices.Contains(conflicts, t) {
+			conflicts = append(conflicts, t)
+		}
+	}
+	slices.Sort(conflicts)
+
+	return conflicts
+}
+
 func (r *Subdomain) findType(rtype string) *yaml.Node {
 
 	findType := func(root *yaml.Node, rtype string) *yaml.Node {
