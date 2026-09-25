@@ -37,8 +37,6 @@
       - flags: 0
         tag: issue
         value: ca.unit.tests
-  - type: ALIAS
-    value: www.unit.tests.
 _imap._tcp:
   ttl: 600
   type: SRV

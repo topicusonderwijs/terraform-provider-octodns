@@ -1,0 +1,14 @@
+---
+# ALIAS is only allowed at the zone root and cannot coexist with A or AAAA
+# records (octodns AliasRootValidator and CnameCoexistenceValidator), so it
+# lives in its own fixture instead of unit.tests.yaml.
+'':
+  - type: ALIAS
+    value: www.unit.tests.
+  - type: NS
+    values:
+      - 6.2.3.4.
+      - 7.2.3.4.
+www:
+  type: A
+  value: 2.2.3.6

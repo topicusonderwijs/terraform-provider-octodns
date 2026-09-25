@@ -11,6 +11,7 @@ FEATURES:
 
 NOTES:
 - The ALIAS and CNAME resource documentation now describes the octodns coexistence rules and the current provider behaviour
+- Building the provider from source now requires Go 1.26 or newer (required by `golang.org/x/oauth2` v0.37.0)
 
 FIXES:
 - Plan-time validation of record names: CNAME records at the zone root and ALIAS records outside the zone root are now rejected, matching the octodns validators
@@ -19,8 +20,19 @@ FIXES:
 - Duplicate scope detection now treats an unnamed scope as `default`: two unnamed scopes, or an unnamed scope plus a scope named `default`, are rejected instead of silently overwriting each other
 - Creating a record in an empty zone file (`{}`) no longer fails, and the zone is written in block style instead of flow style
 
+SECURITY:
+- Bump `google.golang.org/grpc` to v1.83.2 (GO-2026-6443) and `golang.org/x/text` to v0.42.0 (GO-2026-5970); both vulnerabilities were reachable from the provider according to `govulncheck`
+- Bump `golang.org/x/crypto` to v0.57.0 and `golang.org/x/net` to v0.59.0, resolving the open Dependabot security alerts (not reachable from the provider)
+- `google.golang.org/grpc` is intentionally kept on the 1.83 line: v1.84.0 is still affected by GO-2026-6443
+
 DEPRECATIONS:
 - Provider attribute `error_on_missing_records`: backwards compatibility option for the missing record behaviour of versions up to 1.2.0, will be removed in version 2.0.0
+
+INTERNAL:
+- Dependency updates: `terraform-plugin-docs` v0.25.0, `terraform-plugin-log` v0.11.0, `golang.org/x/oauth2` v0.37.0
+- CI: `actions/checkout` v7, `actions/setup-go` v7, `hashicorp/setup-terraform` v4, `golangci-lint-action` v9.3.0, `goreleaser-action` v7.2.3, `ghaction-import-gpg` v7.0.0
+- Added unit tests for record name validation, record type conflict detection, missing record handling, empty zones and duplicate scopes
+- ALIAS test data moved to a separate fixture (`testdata/unit.tests.alias.yaml`), so the octodns based fixtures stay valid
 
 ## 1.2.0 (2026-04-20)
 

@@ -272,7 +272,25 @@ func TestRecord_Write_AAAA(t *testing.T) {
 // TestRecord_Read_ALIAS get an ALIAS record from unit.tests, checking
 // for a valid return value.
 func TestRecord_Read_ALIAS(t *testing.T) {
-	validateReadSimpleValues(t, "", TYPE_ALIAS, []string{"www." + fqdn})
+	aliasZone, err := zoneFromYaml(UNIT_FILE_ALIAS)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	sub, err := aliasZone.FindSubdomain("")
+	if err != nil {
+		t.Fatalf("FindSubdomain throws an error: %s", err)
+	}
+	rt, err := sub.GetType(TYPE_ALIAS.String())
+	if err != nil {
+		t.Fatalf("GetType throws an error: %s", err)
+	}
+
+	TypesChecked[TYPE_ALIAS.String()].Read()
+
+	wantValues := []string{"www." + fqdn}
+	checkAmountOfValues(t, rt, len(wantValues))
+	validateStringValues(t, rt, wantValues)
 }
 
 // TestRecord_Write_ALIAS Create an ALIAS record, checking

@@ -14,6 +14,7 @@ const (
 	UNIT_FILE_DEFAULT     = "unit.tests.yaml"
 	UNIT_FILE_LOC_DELETED = "unit.tests.loc_deleted.yaml"
 	UNIT_FILE_UNIT_ADDED  = "unit.tests.unit_added.yaml"
+	UNIT_FILE_ALIAS       = "unit.tests.alias.yaml"
 )
 
 func zoneFromYaml(filename string) (zone Zone, err error) {
