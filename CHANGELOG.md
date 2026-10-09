@@ -6,6 +6,10 @@ FEATURES:
 FIXES:
 - New record names that would not be read back as a string, such as `9.50` or `10` in reverse zones, are now written single quoted (`'9.50':`). Before, they were written unquoted, so other YAML tools could read them as numbers and write them back changed (`9.5`). Existing unquoted names in zone files are left as is.
 
+SECURITY:
+- Bump `golang.org/x/net` to v0.60.0 (GO-2026-6617, GO-2026-6612, GO-2026-6611, GO-2026-6610, GO-2026-6603); all were reachable from the provider according to `govulncheck`
+- Build with Go 1.27.2 through a `toolchain` directive in `go.mod`, fixing the reachable standard library vulnerabilities GO-2026-6613, GO-2026-6608, GO-2026-6607 and GO-2026-6605. The minimum Go version to build from source stays 1.26.0
+
 INTERNAL:
 - Switched the YAML library from the unmaintained `gopkg.in/yaml.v3` to its maintained successor `go.yaml.in/yaml/v3` v3.0.5 (same API, required for `compact_sequence_indent`)
 - Added unit tests for record name quoting and compact sequence indentation

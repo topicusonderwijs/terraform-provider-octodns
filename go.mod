@@ -2,6 +2,8 @@ module github.com/topicusonderwijs/terraform-provider-octodns
 
 go 1.26.0
 
+toolchain go1.27.2
+
 require (
 	github.com/google/go-cmp v0.7.0
 	github.com/google/go-github/v55 v55.0.0
@@ -67,7 +69,7 @@ require (
 	golang.org/x/crypto v0.57.0 // indirect
 	golang.org/x/exp v0.0.0-20230809150735-7b3493d9a819 // indirect
 	golang.org/x/mod v0.41.0 // indirect
-	golang.org/x/net v0.59.0 // indirect
+	golang.org/x/net v0.60.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260706201446-f0a921348800 // indirect
