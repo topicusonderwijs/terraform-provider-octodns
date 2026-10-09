@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/google/go-cmp/cmp"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -103,6 +104,28 @@ func TestZone_WriteYaml(t *testing.T) {
 
 	compareZoneOutputWithFile(t, &zone, UNIT_FILE_DEFAULT)
 
+}
+
+func TestZone_WriteYamlCompactSequenceIndent(t *testing.T) {
+
+	in := "'9.50':\n  - ttl: 300\n    type: PTR\n    values:\n      - a.example.\n      - b.example.\nwww:\n  type: A\n  value: 1.2.3.4\n"
+	compact := "'9.50':\n- ttl: 300\n  type: PTR\n  values:\n  - a.example.\n  - b.example.\nwww:\n  type: A\n  value: 1.2.3.4\n"
+
+	for enabled, want := range map[bool]string{false: in, true: compact} {
+		testZone := Zone{CompactSequenceIndent: enabled}
+		if err := testZone.ReadYaml([]byte(in)); err != nil {
+			t.Fatalf("ReadYaml error: %s", err.Error())
+		}
+
+		out, err := testZone.WriteYaml()
+		if err != nil {
+			t.Fatalf("WriteYaml error: %s", err.Error())
+		}
+
+		if diff := cmp.Diff(want, string(out)); diff != "" {
+			t.Errorf("CompactSequenceIndent=%v output is not equal:\n%s", enabled, diff)
+		}
+	}
 }
 
 func TestZone_FindRecordByType(t *testing.T) {
@@ -209,6 +232,41 @@ func TestZone_CreateSubdomain(t *testing.T) {
 		t.Errorf("CreateSubdomain unexpected error while trying to create an existing subdomain: %s", err)
 	}
 
+}
+
+func TestZone_CreateSubdomainQuotesNumericKeys(t *testing.T) {
+
+	tests := map[string]string{
+		"":      "'':",
+		"9.50":  "'9.50':",
+		"10":    "'10':",
+		"true":  "'true':",
+		"null":  "'null':",
+		"www":   "www:",
+		"1.2.3": "1.2.3:",
+	}
+
+	for subdomain, want := range tests {
+		t.Run(subdomain, func(t *testing.T) {
+			testZone := Zone{}
+			if err := testZone.ReadYaml([]byte("--- {}\n")); err != nil {
+				t.Fatalf("ReadYaml error: %s", err.Error())
+			}
+
+			if _, err := testZone.CreateSubdomain(subdomain); err != nil {
+				t.Fatalf("CreateSubdomain error: %s", err.Error())
+			}
+
+			out, err := testZone.WriteYaml()
+			if err != nil {
+				t.Fatalf("WriteYaml error: %s", err.Error())
+			}
+
+			if !strings.HasPrefix(string(out), want) {
+				t.Errorf("key for %q written as %q, want prefix %q", subdomain, out, want)
+			}
+		})
+	}
 }
 
 func TestZone_EmptyZone(t *testing.T) {

@@ -46,11 +46,14 @@ type OctodnsProviderModel struct {
 	GitAuthorEmail types.String `tfsdk:"author_email"`
 
 	ErrorOnMissingRecords types.Bool `tfsdk:"error_on_missing_records"`
+	CompactSequenceIndent types.Bool `tfsdk:"compact_sequence_indent"`
 
 	Scopes []struct {
 		Name   types.String `tfsdk:"name"`
 		Path   types.String `tfsdk:"path"`
 		Branch types.String `tfsdk:"branch"`
+
+		CompactSequenceIndent types.Bool `tfsdk:"compact_sequence_indent"`
 	} `tfsdk:"scope"`
 }
 
@@ -120,6 +123,12 @@ func (p *OctodnsProvider) Schema(ctx context.Context, req provider.SchemaRequest
 					"and will be removed in version 2.0.0. Records that no longer exist in the zone file are removed from the state and recreated " +
 					"on the next apply. Remove this attribute from the provider configuration.",
 			},
+			"compact_sequence_indent": schema.BoolAttribute{
+				MarkdownDescription: "Write lists in zone files without indentation relative to their parent key, so list items start at the same column as the key. " +
+					"Defaults to `false`, which indents list items by two spaces. " +
+					"Note: the provider rewrites the whole zone file, so enabling this changes the indentation of all existing lists in a zone on its next change.",
+				Optional: true,
+			},
 		},
 		Blocks: map[string]schema.Block{
 			"scope": schema.ListNestedBlock{
@@ -136,6 +145,10 @@ func (p *OctodnsProvider) Schema(ctx context.Context, req provider.SchemaRequest
 						"branch": schema.StringAttribute{
 							Optional:            true,
 							MarkdownDescription: "The git branch to use for this scope, defaults to provider branch setting",
+						},
+						"compact_sequence_indent": schema.BoolAttribute{
+							Optional:            true,
+							MarkdownDescription: "Write lists in zone files of this scope without indentation relative to their parent key, defaults to provider compact_sequence_indent setting",
 						},
 					},
 				},
@@ -251,6 +264,9 @@ func (p *OctodnsProvider) Configure(ctx context.Context, req provider.ConfigureR
 	if err = client.SetErrorOnMissingRecords(data.ErrorOnMissingRecords.ValueBool()); err != nil {
 		resp.Diagnostics.AddError("Could not set error_on_missing_records", err.Error())
 	}
+	if err = client.SetCompactSequenceIndent(data.CompactSequenceIndent.ValueBool()); err != nil {
+		resp.Diagnostics.AddError("Could not set compact_sequence_indent", err.Error())
+	}
 
 	if len(data.Scopes) == 0 {
 		// Add scope will add the default values for "" parameters
@@ -263,6 +279,13 @@ func (p *OctodnsProvider) Configure(ctx context.Context, req provider.ConfigureR
 			err = client.AddScope(v.Name.ValueString(), v.Path.ValueString(), v.Branch.ValueString(), "")
 			if err != nil {
 				resp.Diagnostics.AddError("Could not add scope", err.Error())
+				continue
+			}
+
+			if !v.CompactSequenceIndent.IsNull() {
+				if err = client.SetScopeCompactSequenceIndent(v.Name.ValueString(), v.CompactSequenceIndent.ValueBool()); err != nil {
+					resp.Diagnostics.AddError("Could not set scope compact_sequence_indent", err.Error())
+				}
 			}
 
 		}

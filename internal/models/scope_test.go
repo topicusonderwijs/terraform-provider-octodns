@@ -108,3 +108,28 @@ func TestScope_GetBranch(t *testing.T) {
 		}
 	}
 }
+
+func TestScope_GetCompactSequenceIndent(t *testing.T) {
+
+	enabled, disabled := true, false
+
+	testCases := []struct {
+		name     string
+		value    *bool
+		fallback bool
+		want     bool
+	}{
+		{"unset uses fallback false", nil, false, false},
+		{"unset uses fallback true", nil, true, true},
+		{"true overrides fallback", &enabled, false, true},
+		{"false overrides fallback", &disabled, true, false},
+	}
+
+	for _, test := range testCases {
+		s := Scope{CompactSequenceIndent: test.value}
+
+		if got := s.GetCompactSequenceIndent(test.fallback); got != test.want {
+			t.Errorf("%s: want %v got %v", test.name, test.want, got)
+		}
+	}
+}

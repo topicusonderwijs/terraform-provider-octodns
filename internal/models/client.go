@@ -26,6 +26,8 @@ type GitClient interface {
 	SetBranch(branch string) error
 	SetAuthor(name, email string) error
 	SetErrorOnMissingRecords(enabled bool) error
+	SetCompactSequenceIndent(enabled bool) error
+	SetScopeCompactSequenceIndent(name string, enabled bool) error
 	MarkZoneDirty(zone *Zone, comment string)
 	FlushIfLast() error
 }
@@ -49,6 +51,10 @@ type GitHubClient struct {
 	// ErrorOnMissingRecords restores the legacy behaviour of failing when a
 	// record in the state no longer exists in the zone file.
 	ErrorOnMissingRecords bool
+
+	// CompactSequenceIndent writes zone files with sequences that are not
+	// indented relative to their parent mapping key.
+	CompactSequenceIndent bool
 
 	// SaveZoneFn overrides the real GitHub API call when set. Tests use this
 	// to intercept commits without hitting the network. Leave nil in production.
@@ -93,6 +99,26 @@ func (g *GitHubClient) SetAuthor(name, email string) error {
 
 func (g *GitHubClient) SetErrorOnMissingRecords(enabled bool) error {
 	g.ErrorOnMissingRecords = enabled
+	return nil
+}
+
+func (g *GitHubClient) SetCompactSequenceIndent(enabled bool) error {
+	g.CompactSequenceIndent = enabled
+	return nil
+}
+
+// SetScopeCompactSequenceIndent overrides the provider compact sequence
+// indent setting for a single scope.
+func (g *GitHubClient) SetScopeCompactSequenceIndent(name string, enabled bool) error {
+	if name == "" {
+		name = DEFAULT_SCOPE
+	}
+	scope, ok := g.Scopes[name]
+	if !ok {
+		return fmt.Errorf("undefined scope `%s`", name)
+	}
+	scope.CompactSequenceIndent = &enabled
+	g.Scopes[name] = scope
 	return nil
 }
 
@@ -159,6 +185,7 @@ func (g *GitHubClient) GetZone(zone, scope string) (*Zone, error) {
 	z.name = zone
 	z.scope = scope
 	z.sha = fileContent.GetSHA()
+	z.CompactSequenceIndent = sc.GetCompactSequenceIndent(g.CompactSequenceIndent)
 
 	err = z.ReadYaml([]byte(contents))
 	if err != nil {

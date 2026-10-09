@@ -1,5 +1,15 @@
 ## UNRELEASED (TBA)
 
+FEATURES:
+- Provider and scope attribute `compact_sequence_indent`: write lists in zone files without indentation relative to their parent key. Defaults to `false` (current behaviour); a scope inherits the provider setting unless set. Enabling it changes the indentation of all existing lists in a zone on its next change, as the provider rewrites the whole zone file.
+
+FIXES:
+- New record names that would not be read back as a string, such as `9.50` or `10` in reverse zones, are now written single quoted (`'9.50':`). Before, they were written unquoted, so other YAML tools could read them as numbers and write them back changed (`9.5`). Existing unquoted names in zone files are left as is.
+
+INTERNAL:
+- Switched the YAML library from the unmaintained `gopkg.in/yaml.v3` to its maintained successor `go.yaml.in/yaml/v3` v3.0.5 (same API, required for `compact_sequence_indent`)
+- Added unit tests for record name quoting and compact sequence indentation
+
 ## 1.3.0 (2026-09-25)
 
 BEHAVIOUR CHANGES:

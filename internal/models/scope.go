@@ -10,6 +10,10 @@ type Scope struct {
 	Path   string
 	Branch string
 	Ext    string
+
+	// CompactSequenceIndent overrides the provider setting for zones in this
+	// scope, nil means the provider setting is used.
+	CompactSequenceIndent *bool
 }
 
 func NewScope(name, path, branch, ext string) Scope {
@@ -45,4 +49,11 @@ func (s *Scope) GetBranch(fallback string) string {
 	} else {
 		return fallback
 	}
+}
+
+func (s *Scope) GetCompactSequenceIndent(fallback bool) bool {
+	if s.CompactSequenceIndent != nil {
+		return *s.CompactSequenceIndent
+	}
+	return fallback
 }

@@ -88,6 +88,7 @@ provider "octodns" {
 - `author_email` (String) The Author email used in commits, defaults to owner of github token
 - `author_name` (String) The Author name used in commits, defaults to owner of github token
 - `branch` (String) The git branch to use, defaults to main
+- `compact_sequence_indent` (Boolean) Write lists in zone files without indentation relative to their parent key, so list items start at the same column as the key. Defaults to `false`, which indents list items by two spaces. Note: the provider rewrites the whole zone file, so enabling this changes the indentation of all existing lists in a zone on its next change.
 - `error_on_missing_records` (Boolean, Deprecated) Backwards compatibility option that will be removed in version 2.0.0. Fail with an error when a record in the Terraform state no longer exists in the zone file. Defaults to `false`: a missing record is removed from the state with a warning, so it is recreated on the next apply, and destroying a record that is already missing succeeds. Set to `true` to restore the behaviour of provider versions up to 1.2.0.
 - `git_provider` (String) Git provider, only accepted/supported value for now is github
 - `github_access_token` (String, Sensitive) Github personal access token, if not set the environment variable `GITHUB_TOKEN` or the `Github Cli (gh)` command will be used to get a token
@@ -104,4 +105,5 @@ Required:
 Optional:
 
 - `branch` (String) The git branch to use for this scope, defaults to provider branch setting
+- `compact_sequence_indent` (Boolean) Write lists in zone files of this scope without indentation relative to their parent key, defaults to provider compact_sequence_indent setting
 - `name` (String) Unique name of this scope, leave empty for default scope.

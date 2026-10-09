@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 type Zone struct {
@@ -16,6 +16,10 @@ type Zone struct {
 	scope string `yaml:"-"`
 	doc   yaml.Node
 	sha   string
+
+	// CompactSequenceIndent writes sequences without indentation relative to
+	// their parent mapping key (`key:\n- item`) instead of `key:\n  - item`.
+	CompactSequenceIndent bool
 }
 
 func (z *Zone) ReadYamlFile(filename string) error {
@@ -57,8 +61,13 @@ func (z *Zone) CreateSubdomain(subdomain string) (sub Subdomain, err error) {
 		}
 	}
 
-	keyNode := yaml.Node{Kind: yaml.ScalarNode}
+	keyNode := yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str"}
 	keyNode.Value = subdomain
+	// Single quote keys that would not be read back as a string, like 9.50 or
+	// 10 (common in reverse zones), so other tools do not parse them as numbers
+	if !isPlainYamlString(subdomain) {
+		keyNode.Style = yaml.SingleQuotedStyle
+	}
 	contentNode := yaml.Node{Kind: yaml.SequenceNode}
 
 	// An empty zone is usually written as {}, switch to block style so new
@@ -77,6 +86,17 @@ func (z *Zone) CreateSubdomain(subdomain string) (sub Subdomain, err error) {
 	}
 
 	return
+}
+
+// isPlainYamlString reports whether value is read back as a string when
+// written as a plain (unquoted) yaml scalar.
+func isPlainYamlString(value string) bool {
+	var v any
+	if err := yaml.Unmarshal([]byte(value), &v); err != nil {
+		return false
+	}
+	_, ok := v.(string)
+	return ok
 }
 
 func (z *Zone) GetRecord(subdomain string, rtype string) (record *Record, err error) {
@@ -220,6 +240,9 @@ func (z Zone) WriteYaml() ([]byte, error) {
 	var buf bytes.Buffer
 	encoder := yaml.NewEncoder(&buf)
 	encoder.SetIndent(2)
+	if z.CompactSequenceIndent {
+		encoder.CompactSeqIndent()
+	}
 	err := encoder.Encode(z.doc.Content[0])
 	if err != nil {
 		return nil, err

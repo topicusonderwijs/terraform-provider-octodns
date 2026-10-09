@@ -252,3 +252,32 @@ func TestAddScope_Duplicates(t *testing.T) {
 		})
 	}
 }
+
+func TestSetScopeCompactSequenceIndent(t *testing.T) {
+
+	client := &GitHubClient{Scopes: map[string]Scope{}, CompactSequenceIndent: true}
+
+	if err := client.AddScope("", "", "", ""); err != nil {
+		t.Fatalf("AddScope failed: %s", err)
+	}
+	if err := client.AddScope("legacy", "legacy", "", ""); err != nil {
+		t.Fatalf("AddScope failed: %s", err)
+	}
+
+	if err := client.SetScopeCompactSequenceIndent("legacy", false); err != nil {
+		t.Fatalf("SetScopeCompactSequenceIndent failed: %s", err)
+	}
+	if err := client.SetScopeCompactSequenceIndent("unknown", false); err == nil {
+		t.Errorf("expected error for undefined scope, got nil")
+	}
+
+	for name, want := range map[string]bool{"": true, "legacy": false} {
+		scope, err := client.GetScope(name)
+		if err != nil {
+			t.Fatalf("GetScope(%q) failed: %s", name, err)
+		}
+		if got := scope.GetCompactSequenceIndent(client.CompactSequenceIndent); got != want {
+			t.Errorf("scope %q: want %v got %v", name, want, got)
+		}
+	}
+}
