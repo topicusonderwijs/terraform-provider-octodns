@@ -1,5 +1,7 @@
 ## UNRELEASED (TBA)
 
+## 1.4.0 (2026-10-09)
+
 FEATURES:
 - Provider and scope attribute `compact_sequence_indent`: write lists in zone files without indentation relative to their parent key. Defaults to `false` (current behaviour); a scope inherits the provider setting unless set. Enabling it changes the indentation of all existing lists in a zone on its next change, as the provider rewrites the whole zone file.
 
